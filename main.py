@@ -1,5 +1,6 @@
 import pygame
 import sys
+import signal
 import queue
 from bot_ekko.core.state_handler import StateHandler
 from bot_ekko.modules.media_interface import InterfaceModule
@@ -11,6 +12,9 @@ from bot_ekko.config import *
 
 import random
 
+
+def handle_sigterm(signum, frame):
+    raise KeyboardInterrupt
 
 def main():
     pygame.init()
@@ -34,6 +38,8 @@ def main():
     sensor_reader.start()
 
     sensor_trigger = SensorStateTrigger(state_handler)
+
+    signal.signal(signal.SIGTERM, handle_sigterm)
 
     try:
         while True:
