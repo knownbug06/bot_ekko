@@ -17,3 +17,8 @@ class SensorData(BaseModel):
     imu: IMUSensorData
 
 
+class StateContext(BaseModel):
+    state: str
+    state_entry_time: int
+    x: int
+    y: int

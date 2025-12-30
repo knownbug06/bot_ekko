@@ -11,6 +11,7 @@ from bot_ekko.core.state_machine import StateMachine
 from bot_ekko.core.eyes import Eyes
 from bot_ekko.config import *
 from bot_ekko.core.logger import get_logger
+from bot_ekko.core.display_manager import init_display
 
 logger = get_logger("Main")
 
@@ -21,12 +22,10 @@ def handle_sigterm(signum, frame):
 
 def main():
     logger.info("Starting Bot Ekko...")
-    pygame.init()
-    
-    screen = pygame.display.set_mode((PHYSICAL_W, PHYSICAL_H))
+
+    screen, logical_surface = init_display((PHYSICAL_W, PHYSICAL_H), (LOGICAL_W, LOGICAL_H), fullscreen=True)
     pygame.mouse.set_visible(False)
     
-    logical_surface = pygame.Surface((LOGICAL_W, LOGICAL_H))
     clock = pygame.time.Clock()
 
     # 1. Thread-safe command queue

@@ -1,4 +1,4 @@
-from bot_ekko.modules.data_models import SensorData
+from bot_ekko.core.models import SensorData
 
 
 class SensorDataTriggers:

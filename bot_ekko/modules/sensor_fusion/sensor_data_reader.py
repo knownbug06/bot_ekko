@@ -3,7 +3,7 @@ import time
 import serial
 import json
 
-from bot_ekko.modules.data_models import SensorData, TOFSensorData, IMUSensorData
+from bot_ekko.core.models import SensorData, TOFSensorData, IMUSensorData
 from bot_ekko.core.logger import get_logger
 
 logger = get_logger("SensorDataReader")

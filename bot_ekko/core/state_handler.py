@@ -1,11 +1,13 @@
 import random
 import math
 import pygame
+from collections import deque
 from datetime import datetime
 from bot_ekko.config import *
 from bot_ekko.modules.effects import EffectsRenderer
 from bot_ekko.core.movements import Looks
 from bot_ekko.core.logger import get_logger
+from bot_ekko.core.models import StateContext
 
 logger = get_logger("StateHandler")
 
@@ -27,6 +29,26 @@ class StateHandler:
 
         self.interrupt_state = False
         self.state_entry_time = 0
+    
+        self.state_history = deque(maxlen=5)
+    
+    def save_state_ctx(self):
+        state_ctx = StateContext(
+            state=self.state_machine.get_state(),
+            state_entry_time=self.state_entry_time,
+            x=self.eyes.target_x,
+            y=self.eyes.target_y
+        )
+        self.state_history.append(state_ctx)
+    
+    def restore_state_ctx(self):
+        if self.state_history:
+            state_ctx = self.state_history.pop()
+            self.set_state(state_ctx.state)
+            self.state_entry_time = state_ctx.state_entry_time
+            self.eyes.target_x = state_ctx.x
+            self.eyes.target_y = state_ctx.y
+            logger.info(f"Context restored to: {state_ctx}")
 
     def set_state(self, new_state):
         args = []

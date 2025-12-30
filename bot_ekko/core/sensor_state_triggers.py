@@ -1,5 +1,5 @@
 import pygame
-from bot_ekko.modules.data_models import SensorData
+from bot_ekko.core.models import SensorData
 from bot_ekko.modules.sensor_fusion.sensor_triggers import SensorDataTriggers
 from bot_ekko.config import SENSOR_TRIGGER_ENTRY_TIME, SENSOR_TRIGGER_EXIT_TIME
 from bot_ekko.core.logger import get_logger
@@ -22,7 +22,7 @@ class SensorStateTrigger:
         if is_proximity:
             if not self.state_handler.interrupt_state:
                 if self.wait_sensor_trigger(SENSOR_TRIGGER_ENTRY_TIME):
-                    self.state_handler.state_machine.store_context()
+                    self.state_handler.save_state_ctx()
                     self.state_handler.interrupt_state = True
                     self.state_handler.set_state("ANGRY")
                     logger.info("Triggering RAINBOW_EYES state from proximity")
@@ -31,7 +31,7 @@ class SensorStateTrigger:
         elif is_distance:
             if not self.state_handler.interrupt_state:
                 if self.wait_sensor_trigger(SENSOR_TRIGGER_ENTRY_TIME):
-                    self.state_handler.state_machine.store_context()
+                    self.state_handler.save_state_ctx()
                     self.state_handler.interrupt_state = True
                     self.state_handler.set_state("DISTANCE")
                     logger.info("Triggering DISTANCE state from distance")
@@ -40,7 +40,7 @@ class SensorStateTrigger:
         else:
             # No active triggers, check for exit
             if self.state_handler.interrupt_state and self.wait_sensor_trigger(SENSOR_TRIGGER_EXIT_TIME):
-                self.state_handler.state_machine.restore_context()
+                self.state_handler.restore_state_ctx()
                 self.state_handler.interrupt_state = False
                 logger.info("Restoring context from interrupt state")
                 self.state_handler.state_entry_time = 0
