@@ -6,6 +6,12 @@ from bot_ekko.core.logger import get_logger
 logger = get_logger("InterfaceModule")
 
 class InterfaceModule:
+    """
+    Manages the display of generic media content (Text, Images, GIFs).
+    
+    Acts as a bridge to override the robot's default eye rendering with 
+    custom content when requested.
+    """
     def __init__(self, state_machine):
         self.state_machine = state_machine
         self.content_type = None # "TEXT", "IMAGE", "GIF"
@@ -26,6 +32,12 @@ class InterfaceModule:
             self.state_machine.set_state("INTERFACE")
 
     def set_text(self, text):
+        """
+        Displays a text message on the screen.
+        
+        Args:
+            text (str): The string to display.
+        """
         self._ensure_interface_state()
             
         self.content_type = "TEXT"
@@ -34,6 +46,12 @@ class InterfaceModule:
         self._reset_gif()
 
     def set_image(self, image_path):
+        """
+        Loads and displays a static image.
+        
+        Args:
+           image_path (str): Absolute or relative path to the image file.
+        """
         self._ensure_interface_state()
 
         self.content_type = "IMAGE"
@@ -48,6 +66,12 @@ class InterfaceModule:
             self.set_text(f"Error: {e}")
 
     def set_gif(self, gif_path):
+        """
+        Loads and plays a GIF animation.
+        
+        Args:
+            gif_path (str): Absolute or relative path to the GIF file.
+        """
         self._ensure_interface_state()
 
         if self.content_type == "GIF" and self.value == gif_path and self.gif_frames:
@@ -106,7 +130,9 @@ class InterfaceModule:
         self.last_frame_time = 0
 
     def clear(self):
-        """Clears interface and restores previous state."""
+        """
+        Clears the current interface content and restores the previous robot state.
+        """
         self.content_type = None
         self.value = None
         self.image_surface = None

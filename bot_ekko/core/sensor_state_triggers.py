@@ -8,6 +8,12 @@ logger = get_logger("SensorStateTrigger")
 
 
 class SensorStateTrigger:
+    """
+    Monitors sensor data and triggers appropriate state transitions.
+    
+    Checks proximity and distance sensors to override the current state 
+    with reactions like ANGRY (proximity) or DISTANCE (distance check).
+    """
     def __init__(self, state_handler):
         self.state_handler = state_handler
         self.triggers = SensorDataTriggers()
@@ -16,6 +22,12 @@ class SensorStateTrigger:
         return pygame.time.get_ticks() - self.state_handler.state_entry_time > duration
     
     def trigger_states(self, sensor_data: SensorData):
+        """
+        Evaluates sensor data and triggers state changes if thresholds are met.
+        
+        Args:
+            sensor_data (SensorData): The latest data packet from the sensors.
+        """
         is_proximity = self.triggers.check_proximity(sensor_data)
         is_distance = self.triggers.check_distance(sensor_data)
 

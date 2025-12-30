@@ -12,7 +12,13 @@ from bot_ekko.core.models import StateContext
 logger = get_logger("StateHandler")
 
 class StateHandler:
-    """Handles ONLY logic, timers, and state decisions."""
+    """
+    Handles state logic, transitions, and rendering delegation for the robot's eyes.
+
+    This class manages the lifecycle of different emotional and functional states 
+    (e.g., ACTIVE, SLEEPING, INTERFACE), handling both the logic updates 
+    (movement, blinking) and the rendering calls.
+    """
     def __init__(self, eyes, state_machine):
         self.eyes = eyes
         self.state_machine = state_machine
@@ -33,6 +39,12 @@ class StateHandler:
         self.state_history = deque(maxlen=5)
     
     def save_state_ctx(self):
+        """
+        Saves the current state context (state, entry time, eye position) to history.
+        
+        This is typically used before interrupting the current state with a temporary 
+        priority state (like a sensor trigger or interface overlay).
+        """
         state_ctx = StateContext(
             state=self.state_machine.get_state(),
             state_entry_time=self.state_entry_time,
@@ -42,6 +54,11 @@ class StateHandler:
         self.state_history.append(state_ctx)
     
     def restore_state_ctx(self):
+        """
+        Restores the most recently saved state context from history.
+        
+        This returns the robot to the previous state after an interruption.
+        """
         if self.state_history:
             state_ctx = self.state_history.pop()
             self.set_state(state_ctx.state)
@@ -51,6 +68,12 @@ class StateHandler:
             logger.info(f"Context restored to: {state_ctx}")
 
     def set_state(self, new_state):
+        """
+        Transitions to a new state.
+        
+        Args:
+            new_state (str): The name of the target state (must verify against config.STATES).
+        """
         args = []
         if isinstance(new_state, tuple):
              new_state, *args = new_state
@@ -73,6 +96,12 @@ class StateHandler:
             self.set_state("WAKING")
 
     def handle_states(self, surface, now, sleep_h, sleep_m, wake_h, wake_m):
+        """
+        Main update loop for state handling.
+        
+        Checks schedules, determines the current state, and calls the appropriate 
+        specific handler method (e.g., handle_ACTIVE).
+        """
         self._check_schedule(sleep_h, sleep_m, wake_h, wake_m)
         
         current_state = self.state_machine.get_state()
