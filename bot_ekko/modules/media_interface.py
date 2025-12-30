@@ -1,7 +1,9 @@
 import pygame
 from PIL import Image
 from bot_ekko.config import LOGICAL_W, LOGICAL_H, CYAN, BLACK
+from bot_ekko.core.logger import get_logger
 
+logger = get_logger("InterfaceModule")
 
 class InterfaceModule:
     def __init__(self, state_machine):
@@ -42,7 +44,7 @@ class InterfaceModule:
             # Use convert() for speed
             self.image_surface = pygame.transform.scale(img, (LOGICAL_W, LOGICAL_H)).convert()
         except Exception as e:
-            print(f"Error loading image: {e}")
+            logger.error(f"Error loading image: {e}")
             self.set_text(f"Error: {e}")
 
     def set_gif(self, gif_path):
@@ -91,10 +93,10 @@ class InterfaceModule:
                 pass # End of frames
                 
             self.gif_active = True
-            print(f"Loaded GIF: {gif_path} ({len(self.gif_frames)} frames)")
+            logger.info(f"Loaded GIF: {gif_path} ({len(self.gif_frames)} frames)")
             
         except Exception as e:
-            print(f"Error loading GIF: {e}")
+            logger.error(f"Error loading GIF: {e}")
             self.set_text(f"Error GIF: {e}")
 
     def _reset_gif(self):

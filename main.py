@@ -2,6 +2,7 @@ import pygame
 import sys
 import signal
 import queue
+import random
 from bot_ekko.core.state_handler import StateHandler
 from bot_ekko.modules.media_interface import InterfaceModule
 from bot_ekko.modules.sensor_fusion.sensor_data_reader import ReadSensorSerialData
@@ -9,14 +10,17 @@ from bot_ekko.core.sensor_state_triggers import SensorStateTrigger
 from bot_ekko.core.state_machine import StateMachine
 from bot_ekko.core.eyes import Eyes
 from bot_ekko.config import *
+from bot_ekko.core.logger import get_logger
 
-import random
+logger = get_logger("Main")
+
 
 
 def handle_sigterm(signum, frame):
     raise KeyboardInterrupt
 
 def main():
+    logger.info("Starting Bot Ekko...")
     pygame.init()
     
     screen = pygame.display.set_mode((PHYSICAL_W, PHYSICAL_H))
@@ -60,8 +64,8 @@ def main():
                     
                     logical_surface.fill(BLACK)
                     sensor_data = sensor_reader.get_sensor_data()
-                    print(sensor_data.tof.mm)
                     sensor_trigger.trigger_states(sensor_data)
+                    logger.debug(f"TOF Distance: {sensor_data.tof.mm}")
                     
                     if state_machine.get_state() == "INTERFACE":
                         interface.draw(logical_surface)
@@ -77,11 +81,12 @@ def main():
                 clock.tick(60)
                 
             except Exception as e:
-                print(f"Main loop error: {e}")
+                logger.error(f"Main loop error: {e}")
+                raise
     except KeyboardInterrupt:
-        print("\nStopping bot...")
+        logger.info("\nStopping bot...")
     finally:
-        print("Cleaning up resources...")
+        logger.info("Cleaning up resources...")
         sensor_reader.stop()
         pygame.quit()
         sys.exit()

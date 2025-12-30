@@ -1,5 +1,8 @@
 import pygame
 from bot_ekko.config import STATES
+from bot_ekko.core.logger import get_logger
+
+logger = get_logger("Eyes")
 
 class Eyes:
     """Handles ONLY the math of moving and drawing."""
@@ -34,7 +37,7 @@ class Eyes:
         
         # --- BLINK & HEIGHT PHYSICS ---
         # If we are in WAKING state (was CONFUSED), we skip standard height physics 
-        if current_state != "WAKING":
+        if current_state not in ["WAKING", "WINK"]:
             if self.blink_phase == "CLOSING":
                 self.curr_lh += (10 - self.curr_lh) * close_spd
                 self.curr_rh += (10 - self.curr_rh) * close_spd
@@ -49,3 +52,4 @@ class Eyes:
         self.target_x = x
         self.target_y = y
         self.last_gaze = pygame.time.get_ticks()
+        logger.debug(f"Eyes set to look at ({x}, {y})")

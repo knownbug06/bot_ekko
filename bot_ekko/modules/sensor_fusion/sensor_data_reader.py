@@ -4,6 +4,9 @@ import serial
 import json
 
 from bot_ekko.modules.data_models import SensorData, TOFSensorData, IMUSensorData
+from bot_ekko.core.logger import get_logger
+
+logger = get_logger("SensorDataReader")
 
 
 class ReadSensorSerialData(threading.Thread):
@@ -18,9 +21,9 @@ class ReadSensorSerialData(threading.Thread):
             self.ser.setDTR(True) # Toggle DTR to wake up the ESP32
             self.ser.setRTS(True) # Toggle RTS
             self.ser.flush()
-            print(f"Connected and reset signals sent to {port}")
+            logger.info(f"Connected and reset signals sent to {port}")
         except Exception as e:
-            print(f"Serial Connection Error: {e}")
+            logger.error(f"Serial Connection Error: {e}")
             self.ser = None
 
         # Our local storage for the latest "state" of the bot
@@ -39,10 +42,10 @@ class ReadSensorSerialData(threading.Thread):
             {"sensor_vlox":{"data":{"mm":170,"status":"ok"}},"sensor_imu":{"data":{"ax":0,"ay":0,"az":0,"status":"NA"}}}
         """
         if not self.ser:
-            print("Sensor Service failed to start: No Serial device.")
+            logger.error("Sensor Service failed to start: No Serial device.")
             return
 
-        print("Sensor Service Started")
+        logger.info("Sensor Service Started")
         while self.running:
             if self.ser.in_waiting > 0:
                 try:
@@ -70,7 +73,7 @@ class ReadSensorSerialData(threading.Thread):
                     # Skip partial lines or serial noise
                     continue
                 except Exception as e:
-                    print(f"Sensor Loop Error: {e}")
+                    logger.error(f"Sensor Loop Error: {e}")
 
             time.sleep(0.01) # High frequency but gives CPU breathing room
 

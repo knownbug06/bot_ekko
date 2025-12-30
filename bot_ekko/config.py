@@ -5,9 +5,13 @@ PHYSICAL_W, PHYSICAL_H = 480, 800
 CYAN = (0, 255, 180)
 RED = (255, 50, 50)
 BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
 
 pygame.font.init()
 MAIN_FONT = pygame.font.SysFont("Arial", 40, bold=True)
+
+SENSOR_TRIGGER_ENTRY_TIME = 500
+SENSOR_TRIGGER_EXIT_TIME = 3000
 
 
 # STATE DATA: [Base_Height, Gaze_Speed, Radius, Close_Spd, Open_Spd]
@@ -20,11 +24,15 @@ STATES = {
     "THINKING":   [130, 0.1,  40, 0.3, 0.2],
     "ANGRY":      [120, 0.1,  10, 0.4, 0.2],  # Angry layout
     "INTERFACE":  [0,   0,    0,  0,   0],     # Eyes hidden
-    "PROXIMITY":  [160, 0.1,  10, 0.5, 0.5],  # Angry layout
-    "DISTANCE":   [160, 0.1,  10, 0.5, 0.5],  # Angry layout
     "SCARED":     [160, 0.2,  10, 0.5, 0.2],  # Scared layout (wide eyes, fast gaze)
+    "HAPPY":      [120, 0.1,  20, 0.4, 0.2],  # Happy layout (arched eyes)
+    "RAINBOW_EYES": [210, 0.1,  30, 0.5, 0.15], # Generic shape, rainbow fill
+    "WINK":       [160, 0.1,  20, 0.5, 0.2],  # Wink (one eye closed)
 }
 
 # BLUETOOTH CONFIGURATION
 BLUETOOTH_NAME = "ekko_bt"
 
+
+# LOGGING CONFIGURATION
+LOG_LEVEL = "INFO"
