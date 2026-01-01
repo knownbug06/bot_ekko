@@ -13,18 +13,22 @@ from bot_ekko.core.models import StateContext, CommandNames
 logger = get_logger("StateHandler")
 
 class StateRenderer:
-    def __init__(self, eyes, state_handler, command_center=None, media_player=None):
+    def __init__(self, eyes, state_handler, command_center):
         self.eyes = eyes
         self.last_blink = 0
         self.last_mood_change = 0
-        self.command_center = command_center
         self.state_handler = state_handler
-        self.media_player = media_player
+        self.command_center = command_center
+        self.media_player = MediaModule(self.state_handler)
         
         # Rendering attributes
         self.effects = EffectsRenderer()
         self.particles = []
         self.wake_stage = 0
+        
+        # State Flags
+        self.is_media_playing = False
+        self.interrupt_state = False
         
         # Proxies to StateHandler attributes needed for logic/rendering
         self.looks = Looks(self.eyes, state_handler.state_machine)
@@ -37,14 +41,14 @@ class StateRenderer:
             logger.info("Triggering WAKING state from SLEEPING")
             self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "WAKING"})
 
-    def handle_states(self, surface, now, sleep_h, sleep_m, wake_h, wake_m):
+    def render(self, surface, now, sleep_h, sleep_m, wake_h, wake_m):
         """
         Main update loop for state handling.
         
         Checks schedules, determines the current state, and calls the appropriate 
         specific handler method (e.g., handle_ACTIVE).
         """
-        if not self.state_handler.is_media_playing:
+        if not self.is_media_playing:
             self._check_schedule(sleep_h, sleep_m, wake_h, wake_m)
         
             current_state = self.state_handler.get_state()
@@ -55,7 +59,7 @@ class StateRenderer:
             else:
                 logger.warning(f"Warning: No handler for state {current_state}")
         else:
-            self.state_handler.media_player.update(surface)
+            self.media_player.update(surface)
 
     def _check_schedule(self, sleep_h, sleep_m, wake_h, wake_m):
         now_dt = datetime.now()
@@ -70,7 +74,7 @@ class StateRenderer:
 
         current_state = self.state_handler.get_state()
         if in_sleep:
-            if current_state != "SLEEPING" and current_state != "WAKING" and not self.state_handler.interrupt_state:
+            if current_state != "SLEEPING" and current_state != "WAKING" and not self.interrupt_state:
                 logger.info("Triggering SLEEPING state from schedule")
                 self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "SLEEPING"})
         else:
@@ -338,7 +342,7 @@ class StateRenderer:
     def handle_FUNNY(self, surface, now, params=None):
         # Trigger GIF playback if not already playing
         
-        if not self.state_handler.is_media_playing:
+        if not self.is_media_playing:
             # We want to return to ACTIVE (or schedule default) after this, NOT recurse into FUNNY.
             # So we push ACTIVE to history manually and tell play_gif NOT to save current (FUNNY) state.
             
@@ -347,11 +351,11 @@ class StateRenderer:
             self.state_handler.state_history.append(fallback_ctx)
         
             # Placeholder path - user should replace this
-            self.state_handler.media_player.play_gif("/home/ekko/bot_ekko/bot_ekko/assets/anime.gif", duration=5.0, save_context=False)
+            self.media_player.play_gif("/home/ekko/bot_ekko/bot_ekko/assets/anime.gif", duration=5.0, save_context=False)
             
         # Ensure media player updates
-        if self.state_handler.is_media_playing:
-             self.state_handler.media_player.update(surface)
+        if self.is_media_playing:
+             self.media_player.update(surface)
 
     def _draw_happy_eyes(self, surface, color=CYAN):
         lx, ly = int(self.eyes.curr_lx), int(self.eyes.curr_ly)
@@ -464,14 +468,6 @@ class StateHandler:
     def __init__(self, eyes, state_machine):
         self.eyes = eyes
         self.state_machine = state_machine
-
-        # State logic variables
-        self._media_player = None # Injected from main
-        self._command_center = None
-
-        self.is_media_playing = False
-
-        self.interrupt_state = False
         self.state_entry_time = 0
     
         self.state_history = deque(maxlen=5)
@@ -479,30 +475,6 @@ class StateHandler:
 
         # Instantiate Renderer
         self.renderer = StateRenderer(eyes, self)
-    
-    @property
-    def media_player(self):
-        return self._media_player
-    
-    @media_player.setter
-    def media_player(self, value):
-        self._media_player = value
-        if self.renderer:
-            self.renderer.media_player = value
-
-    @property
-    def command_center(self):
-        return self._command_center
-    
-    @command_center.setter
-    def command_center(self, value):
-        self._command_center = value
-        if self.renderer:
-            self.renderer.command_center = value
-
-    def handle_states(self, surface, now, sleep_h, sleep_m, wake_h, wake_m):
-        """Delegates rendering/update loop to the renderer."""
-        self.renderer.handle_states(surface, now, sleep_h, sleep_m, wake_h, wake_m)
     
     def get_state(self):
         return self.state_machine.get_state()
@@ -561,3 +533,19 @@ class StateHandler:
             logger.info(f"State transition: {current_state} -> {new_state}, state_entry_time: {self.state_entry_time}")
         
         # Mood/State params are handled by body physics now
+
+    @property
+    def is_media_playing(self):
+        return self.renderer.is_media_playing
+
+    @is_media_playing.setter
+    def is_media_playing(self, value):
+        self.renderer.is_media_playing = value
+
+    @property
+    def interrupt_state(self):
+        return self.renderer.interrupt_state
+
+    @interrupt_state.setter
+    def interrupt_state(self, value):
+        self.renderer.interrupt_state = value

@@ -13,6 +13,10 @@ from bot_ekko.core.eyes import Eyes
 from bot_ekko.config import *
 from bot_ekko.core.logger import get_logger
 from bot_ekko.core.display_manager import init_display
+from bot_ekko.core.command_center import CommandCenter
+from bot_ekko.core.state_center import StateRenderer
+from bot_ekko.core.command_center import Command
+
 
 logger = get_logger("Main")
 
@@ -30,30 +34,24 @@ def main():
     clock = pygame.time.Clock()
 
     # 1. Thread-safe command queue
-    cmd_queue = queue.Queue()
+    cmd_queue: queue.Queue[Command] = queue.Queue()
 
     # 2. Initialize Architecture
     state_machine = StateMachine()
     eyes = Eyes(state_machine)
     state_handler = StateHandler(eyes, state_machine)
-    
-    media_module = MediaModule(state_handler)
-    media_module = MediaModule(state_handler)
-    state_handler.media_player = media_module
-    media_module.start()
-    
-    # Inject Command Center
-    from bot_ekko.core.command_center import CommandCenter
     command_center = CommandCenter(cmd_queue, state_handler)
-    state_handler.command_center = command_center
+    state_renderer = StateRenderer(eyes, state_handler, command_center)
     
-    sensor_reader = ReadSensorSerialData(cmd_queue)
-    sensor_reader.start()
+    # sensor reader
+    # sensor_reader = ReadSensorSerialData(cmd_queue)
+    # sensor_reader.start()
 
-    bluetooth_manager = BluetoothManager(cmd_queue)
-    bluetooth_manager.start()
+    # bluetooth manager
+    # bluetooth_manager = BluetoothManager(cmd_queue)
+    # bluetooth_manager.start()
 
-    sensor_trigger = SensorStateTrigger(state_handler)
+    # sensor_trigger = SensorStateTrigger(state_handler)
 
     signal.signal(signal.SIGTERM, handle_sigterm)
 
@@ -62,44 +60,26 @@ def main():
             try:
                 now = pygame.time.get_ticks()
 
-                if state_machine.get_state() != "INTERFACE":
-                    eyes.apply_physics()
-
                 # Process Command Queue
                 while not cmd_queue.empty():
                     try:
-                        cmd_raw = cmd_queue.get_nowait().strip()
-                        parts = cmd_raw.split(";")
-                        cmd = parts[0].upper()
-                        
-                        params = None
-                        if len(parts) > 1:
-                             params = {'text': parts[1].strip()}
-                        
-                        logger.info(f"Processing command: {cmd} with params: {params}")
-                        if cmd in STATES:
-                            state_handler.set_state(cmd, params)
-                        else:
-                            logger.warning(f"Invalid command: {cmd}")
+                        command = cmd_queue.get_nowait()
+                        command.execute()
                     except queue.Empty:
                         pass
 
+
+                eyes.apply_physics()
                 # Render
                 if pygame.display.get_init():
                     # Pump events internally to keep window responsive (even if we ignore them)
                     pygame.event.pump()
                     
                     logical_surface.fill(BLACK)
-                    sensor_data = sensor_reader.get_sensor_data()
-                    sensor_trigger.trigger_states(sensor_data)
-                    logger.debug(f"TOF Distance: {sensor_data.tof.mm}")
-                    
-                    if state_machine.get_state() == "INTERFACE":
-                        # Legacy/Placeholder if INTERFACE state still exists without MediaModule usage
-                        pass
-                    else:
-                        # Logic AND Drawing happen here now
-                        state_handler.handle_states(logical_surface, now, *SLEEP_AT, *WAKE_AT)
+                    # sensor_data = sensor_reader.get_sensor_data()
+                    # sensor_trigger.trigger_states(sensor_data)
+                    # logger.debug(f"TOF Distance: {sensor_data.tof.mm}")
+                    state_renderer.render(logical_surface, now, *SLEEP_AT, *WAKE_AT)
                     
                     # Transform and Display
                     rotated = pygame.transform.rotate(logical_surface, -90)
@@ -116,8 +96,8 @@ def main():
         logger.info("\nStopping bot...")
     finally:
         logger.info("Cleaning up resources...")
-        sensor_reader.stop()
-        bluetooth_manager.stop()
+        # sensor_reader.stop()
+        # bluetooth_manager.stop()
         pygame.quit()
         sys.exit()
 
