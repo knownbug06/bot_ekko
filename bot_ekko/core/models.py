@@ -41,5 +41,6 @@ class CommandCtx(BaseModel):
         return self.__str__()
     
 
-
-    
+class BluetoothData(BaseModel):
+    text: str
+    is_connected: Optional[bool] = False

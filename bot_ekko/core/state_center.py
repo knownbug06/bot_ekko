@@ -12,14 +12,18 @@ from bot_ekko.core.models import StateContext, CommandNames
 
 logger = get_logger("StateHandler")
 
+
 class StateRenderer:
-    def __init__(self, eyes, state_handler, command_center):
+    def __init__(self, eyes, state_handler, command_center, interrupt_manager=None):
         self.eyes = eyes
         self.last_blink = 0
         self.last_mood_change = 0
+        self.interrupt_manager = interrupt_manager
         self.state_handler = state_handler
         self.command_center = command_center
-        self.media_player = MediaModule(self.state_handler)
+        
+        self.media_player = MediaModule(self.state_handler, self.interrupt_manager)
+        self.media_player.start()
         
         # Rendering attributes
         self.effects = EffectsRenderer()
@@ -27,8 +31,8 @@ class StateRenderer:
         self.wake_stage = 0
         
         # State Flags
-        self.is_media_playing = False
-        self.interrupt_state = False
+        # self.is_media_playing = False # Moved to StateHandler
+        # self.interrupt_state = False (Managed by InterruptManager)
         
         # Proxies to StateHandler attributes needed for logic/rendering
         self.looks = Looks(self.eyes, state_handler.state_machine)
@@ -48,18 +52,15 @@ class StateRenderer:
         Checks schedules, determines the current state, and calls the appropriate 
         specific handler method (e.g., handle_ACTIVE).
         """
-        if not self.is_media_playing:
-            self._check_schedule(sleep_h, sleep_m, wake_h, wake_m)
-        
-            current_state = self.state_handler.get_state()
-            handler_name = f"handle_{current_state}"
-            handler = getattr(self, handler_name, None)
-            if handler:
-                handler(surface, now, self.state_handler.current_state_params)
-            else:
-                logger.warning(f"Warning: No handler for state {current_state}")
+        self._check_schedule(sleep_h, sleep_m, wake_h, wake_m)
+    
+        current_state = self.state_handler.get_state()
+        handler_name = f"handle_{current_state}"
+        handler = getattr(self, handler_name, None)
+        if handler:
+            handler(surface, now, self.state_handler.current_state_params)
         else:
-            self.media_player.update(surface)
+            logger.warning(f"Warning: No handler for state {current_state}")
 
     def _check_schedule(self, sleep_h, sleep_m, wake_h, wake_m):
         now_dt = datetime.now()
@@ -74,7 +75,7 @@ class StateRenderer:
 
         current_state = self.state_handler.get_state()
         if in_sleep:
-            if current_state != "SLEEPING" and current_state != "WAKING" and not self.interrupt_state:
+            if current_state != "SLEEPING" and current_state != "WAKING":
                 logger.info("Triggering SLEEPING state from schedule")
                 self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "SLEEPING"})
         else:
@@ -121,6 +122,28 @@ class StateRenderer:
             
         # --- RENDERING ---
         self._draw_generic(surface)
+    
+    def handle_CANVAS(self, surface, now, params=None):
+        # Dispatch to media player update if running
+        if self.media_player.is_playing:
+            self.media_player.update(surface)
+            return
+
+        # Start media if not running
+        # The parameter structure coming from EventManager -> InterruptManager -> Here is:
+        # events: {"param": {"text": "HELLO"}, "interrupt_name": "canvas"}
+        # interrupt manager merges this into the command params.
+        # So 'params' here will contain: {'target_state': 'CANVAS', 'param': {'text': 'HELLO'}, 'interrupt_name': 'canvas'}
+        
+        interrupt_name = params.get('interrupt_name') if params else None
+        text = None
+        if params and 'param' in params and isinstance(params['param'], dict):
+             text = params['param'].get('text')
+        
+        if text:
+            self.media_player.show_text(text, duration=5.0, save_context=False, interrupt_name=interrupt_name)
+        else:
+            self.media_player.play_gif('/home/ekko/bot_ekko/bot_ekko/assets/anime.gif', duration=5.0, save_context=False, interrupt_name=interrupt_name)
     
     def handle_ANGRY(self, surface, now, params=None):
         # --- LOGIC ---
@@ -342,7 +365,7 @@ class StateRenderer:
     def handle_FUNNY(self, surface, now, params=None):
         # Trigger GIF playback if not already playing
         
-        if not self.is_media_playing:
+        if not self.media_player.is_playing:
             # We want to return to ACTIVE (or schedule default) after this, NOT recurse into FUNNY.
             # So we push ACTIVE to history manually and tell play_gif NOT to save current (FUNNY) state.
             
@@ -354,7 +377,7 @@ class StateRenderer:
             self.media_player.play_gif("/home/ekko/bot_ekko/bot_ekko/assets/anime.gif", duration=5.0, save_context=False)
             
         # Ensure media player updates
-        if self.is_media_playing:
+        if self.media_player.is_playing:
              self.media_player.update(surface)
 
     def _draw_happy_eyes(self, surface, color=CYAN):
@@ -453,9 +476,8 @@ class StateRenderer:
             p1 = points[i]
             p2 = points[(i + 1) % len(points)]
             pygame.draw.circle(surface, color, p1, radius)
-            pygame.draw.line(surface, color, p1, p2, width=radius * 2)
+            pygame.draw.line(surface, color, p1, p2, width=radius * 2) 
 
-    
 
 class StateHandler:
     """
@@ -472,9 +494,7 @@ class StateHandler:
     
         self.state_history = deque(maxlen=5)
         self.current_state_params = None
-
-        # Instantiate Renderer
-        self.renderer = StateRenderer(eyes, self)
+        self.is_media_playing = False
     
     def get_state(self):
         return self.state_machine.get_state()
@@ -533,19 +553,3 @@ class StateHandler:
             logger.info(f"State transition: {current_state} -> {new_state}, state_entry_time: {self.state_entry_time}")
         
         # Mood/State params are handled by body physics now
-
-    @property
-    def is_media_playing(self):
-        return self.renderer.is_media_playing
-
-    @is_media_playing.setter
-    def is_media_playing(self, value):
-        self.renderer.is_media_playing = value
-
-    @property
-    def interrupt_state(self):
-        return self.renderer.interrupt_state
-
-    @interrupt_state.setter
-    def interrupt_state(self, value):
-        self.renderer.interrupt_state = value

@@ -16,6 +16,9 @@ from bot_ekko.core.display_manager import init_display
 from bot_ekko.core.command_center import CommandCenter
 from bot_ekko.core.state_center import StateRenderer
 from bot_ekko.core.command_center import Command
+from bot_ekko.core.event_manager import EventManager
+from bot_ekko.modules.sensor_fusion.sensor_triggers import SensorDataTriggers
+from bot_ekko.core.interrupt_manager import InterruptManager
 
 
 logger = get_logger("Main")
@@ -41,17 +44,23 @@ def main():
     eyes = Eyes(state_machine)
     state_handler = StateHandler(eyes, state_machine)
     command_center = CommandCenter(cmd_queue, state_handler)
-    state_renderer = StateRenderer(eyes, state_handler, command_center)
+    interrupt_manager = InterruptManager(state_handler, command_center)
+    state_renderer = StateRenderer(eyes, state_handler, command_center, interrupt_manager)
+    
     
     # sensor reader
-    # sensor_reader = ReadSensorSerialData(cmd_queue)
-    # sensor_reader.start()
+    sensor_reader = ReadSensorSerialData(cmd_queue)
+    sensor_reader.start()
+    
+    
+    sensor_data_triggers = SensorDataTriggers()
+    event_manager = EventManager(sensor_data_triggers, command_center, state_renderer, state_handler, interrupt_manager)    
+    
 
     # bluetooth manager
-    # bluetooth_manager = BluetoothManager(cmd_queue)
-    # bluetooth_manager.start()
+    bluetooth_manager = BluetoothManager()
+    bluetooth_manager.start()
 
-    # sensor_trigger = SensorStateTrigger(state_handler)
 
     signal.signal(signal.SIGTERM, handle_sigterm)
 
@@ -64,21 +73,27 @@ def main():
                 while not cmd_queue.empty():
                     try:
                         command = cmd_queue.get_nowait()
+                        logger.debug(f"Processing command: {command}")
                         command.execute()
                     except queue.Empty:
                         pass
 
-
                 eyes.apply_physics()
+
+                sensor_data = sensor_reader.get_sensor_data()
+                bluetooth_data = bluetooth_manager.get_bt_data()
+
+                logger.debug(f"TOF Distance: {sensor_data.tof.mm}")
+                logger.debug(f"Bluetooth Data: {bluetooth_data}")
+
+                event_manager.update_sensor_events(sensor_data)
+                event_manager.update_bt_events(bluetooth_data)
+
                 # Render
                 if pygame.display.get_init():
                     # Pump events internally to keep window responsive (even if we ignore them)
                     pygame.event.pump()
-                    
                     logical_surface.fill(BLACK)
-                    # sensor_data = sensor_reader.get_sensor_data()
-                    # sensor_trigger.trigger_states(sensor_data)
-                    # logger.debug(f"TOF Distance: {sensor_data.tof.mm}")
                     state_renderer.render(logical_surface, now, *SLEEP_AT, *WAKE_AT)
                     
                     # Transform and Display
@@ -96,8 +111,8 @@ def main():
         logger.info("\nStopping bot...")
     finally:
         logger.info("Cleaning up resources...")
-        # sensor_reader.stop()
-        # bluetooth_manager.stop()
+        sensor_reader.stop()
+        bluetooth_manager.stop()
         pygame.quit()
         sys.exit()
 

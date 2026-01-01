@@ -33,12 +33,13 @@ STATES = {
     "INTERFACE_PLAY_GIF": [0, 0, 0, 0, 0],    # Media playback state
     "FUNNY":      [0, 0, 0, 0, 0],    # Funny / Media state
     "SHOW_TEXT":  [0, 0, 0, 0, 0],    # Show Text state
+    "CANVAS":  [0, 0, 0, 0, 0],    # Show Text state
 }
 
 # BLUETOOTH CONFIGURATION
 BLUETOOTH_NAME = "ekko_bt"
 
-SLEEP_AT = (22, 0)
+SLEEP_AT = (24, 0)
 WAKE_AT = (7, 0)
 
 

@@ -2,16 +2,20 @@ import threading
 import subprocess
 from bluezero import peripheral
 from bot_ekko.core.logger import get_logger
+from bot_ekko.core.models import BluetoothData
+
 
 logger = get_logger("Bluetooth")
 
 class BluetoothManager(threading.Thread):
-    def __init__(self, command_queue):
+    def __init__(self):
         super().__init__(daemon=True)
-        self.command_queue = command_queue
         self.running = True
         self.peripheral = None
         self.adapter_address = self.get_hci0_addr()
+
+        self.is_connected = False
+        self.bt_data = None
 
     def get_hci0_addr(self):
         try:
@@ -20,21 +24,27 @@ class BluetoothManager(threading.Thread):
         except Exception as e:
             logger.error(f"Failed to get HCI0 address: {e}")
             return None
+        
+    def get_bt_data(self) -> BluetoothData:
+        data = self.bt_data
+        self.bt_data = None # reset data after read is complete since its running it a loop
+        return data
 
     def on_write(self, value, options):
         try:
             cmd = bytes(value).decode().strip()
-            logger.info(f"📥 Command received via Bluetooth: {cmd}")
-            self.command_queue.put(cmd)
+            logger.info(f"[Bluetooth]: Command received via Bluetooth: {cmd}")
+            self.is_connected = True
+            self.bt_data = BluetoothData(text=cmd, is_connected=self.is_connected)
         except Exception as e:
-            logger.error(f"Error processing bluetooth command: {e}")
+            logger.error(f"[Bluetooth]: Error processing bluetooth command: {e}")
 
     def run(self):
         if not self.adapter_address:
-            logger.error("No Bluetooth Adapter found. Bluetooth Service not started.")
+            logger.error("[Bluetooth]: No Bluetooth Adapter found. Bluetooth Service not started.")
             return
 
-        logger.info(f"Starting Bluetooth Service on {self.adapter_address}")
+        logger.info(f"[Bluetooth]: Starting Bluetooth Service on {self.adapter_address}")
 
         try:
             self.peripheral = peripheral.Peripheral(
@@ -59,9 +69,11 @@ class BluetoothManager(threading.Thread):
                 write_callback=self.on_write
             )
 
+            self.is_connected = True
+
             self.peripheral.publish()
         except Exception as e:
-            logger.error(f"Bluetooth Service crashed: {e}")
+            logger.error(f"[Bluetooth]: Bluetooth Service crashed: {e}")
 
     def stop(self):
         self.running = False
