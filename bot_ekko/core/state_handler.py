@@ -5,6 +5,7 @@ from collections import deque
 from datetime import datetime
 from bot_ekko.config import *
 from bot_ekko.modules.effects import EffectsRenderer
+from bot_ekko.modules.media_interface import MediaModule
 from bot_ekko.core.movements import Looks
 from bot_ekko.core.logger import get_logger
 from bot_ekko.core.models import StateContext
@@ -25,18 +26,29 @@ class StateHandler:
         self.last_blink = 0
         self.last_mood_change = 0
 
-        self.looks = Looks(self.eyes, self)
-        
+        self.looks = Looks(self.eyes, self)        
         # State logic variables
         self.wake_stage = 0 
         self.wake_timer = 0
         self.particles = [] # For Zzz
         self.effects = EffectsRenderer()
+        self.media_player = None # Injected from main
+
+        self.is_media_playing = False
 
         self.interrupt_state = False
         self.state_entry_time = 0
     
         self.state_history = deque(maxlen=5)
+        self.current_state_params = None
+    
+    def get_current_state_ctx(self):
+        return StateContext(
+            state=self.state_machine.get_state(),
+            state_entry_time=self.state_entry_time,
+            x=self.eyes.target_x,
+            y=self.eyes.target_y
+        )
     
     def save_state_ctx(self):
         """
@@ -45,12 +57,7 @@ class StateHandler:
         This is typically used before interrupting the current state with a temporary 
         priority state (like a sensor trigger or interface overlay).
         """
-        state_ctx = StateContext(
-            state=self.state_machine.get_state(),
-            state_entry_time=self.state_entry_time,
-            x=self.eyes.target_x,
-            y=self.eyes.target_y
-        )
+        state_ctx = self.get_current_state_ctx()
         self.state_history.append(state_ctx)
     
     def restore_state_ctx(self):
@@ -67,17 +74,21 @@ class StateHandler:
             self.eyes.target_y = state_ctx.y
             logger.info(f"Context restored to: {state_ctx}")
 
-    def set_state(self, new_state):
+    def set_state(self, new_state, params=None):
         """
         Transitions to a new state.
         
         Args:
             new_state (str): The name of the target state (must verify against config.STATES).
+            params (dict, optional): Parameters to pass to the state handler. Defaults to None.
         """
         args = []
         if isinstance(new_state, tuple):
              new_state, *args = new_state
         
+        # Update params regardless of state change (sometimes we re-set same state with new params)
+        self.current_state_params = params
+
         current_state = self.state_machine.get_state()
         if current_state != new_state:
             self.state_machine.set_state(new_state)
@@ -102,15 +113,18 @@ class StateHandler:
         Checks schedules, determines the current state, and calls the appropriate 
         specific handler method (e.g., handle_ACTIVE).
         """
-        self._check_schedule(sleep_h, sleep_m, wake_h, wake_m)
+        if not self.is_media_playing:
+            self._check_schedule(sleep_h, sleep_m, wake_h, wake_m)
         
-        current_state = self.state_machine.get_state()
-        handler_name = f"handle_{current_state}"
-        handler = getattr(self, handler_name, None)
-        if handler:
-            handler(surface, now)
+            current_state = self.state_machine.get_state()
+            handler_name = f"handle_{current_state}"
+            handler = getattr(self, handler_name, None)
+            if handler:
+                handler(surface, now, self.current_state_params)
+            else:
+                logger.warning(f"Warning: No handler for state {current_state}")
         else:
-            logger.warning(f"Warning: No handler for state {current_state}")
+            self.media_player.update(surface)
 
     def _check_schedule(self, sleep_h, sleep_m, wake_h, wake_m):
         now_dt = datetime.now()
@@ -138,7 +152,7 @@ class StateHandler:
             self.eyes.blink_phase = "CLOSING"
             self.last_blink = now
 
-    def handle_ACTIVE(self, surface, now):
+    def handle_ACTIVE(self, surface, now, params=None):
         # --- LOGIC ---
         # 1. Random Gaze
         if now - self.eyes.last_gaze > random.randint(5000, 10000):
@@ -160,7 +174,7 @@ class StateHandler:
         # --- RENDERING ---
         self._draw_generic(surface)
 
-    def handle_SQUINTING(self, surface, now):
+    def handle_SQUINTING(self, surface, now, params=None):
         # --- LOGIC ---
         if now - self.eyes.last_gaze > random.randint(2000, 5000):
             self.eyes.target_x = random.randint(-100, 100)
@@ -175,7 +189,7 @@ class StateHandler:
         # --- RENDERING ---
         self._draw_generic(surface)
     
-    def handle_ANGRY(self, surface, now):
+    def handle_ANGRY(self, surface, now, params=None):
         # --- LOGIC ---
         self.looks.look_center()
         self.random_blink(surface, now)
@@ -205,7 +219,7 @@ class StateHandler:
         self._draw_rounded_poly(surface, RED, l_poly, r)
         self._draw_rounded_poly(surface, RED, r_poly, r)
 
-    def handle_SCARED(self, surface, now):
+    def handle_SCARED(self, surface, now, params=None):
         # --- LOGIC ---
         # if now - self.eyes.last_gaze > random.randint(500, 1500):
         self.eyes.target_x = random.randint(-40, 40)
@@ -239,15 +253,16 @@ class StateHandler:
         self._draw_rounded_poly(surface, WHITE, l_poly, r)
         self._draw_rounded_poly(surface, WHITE, r_poly, r)
 
-    def handle_HAPPY(self, surface, now):
+    def handle_HAPPY(self, surface, now, params=None):
         # --- LOGIC ---
         self.looks.look_up()
         self.random_blink(surface, now)
 
         # --- RENDERING ---
         self._draw_happy_eyes(surface)
+        self._draw_uwu_mouth(surface)
 
-    def handle_RAINBOW_EYES(self, surface, now):
+    def handle_RAINBOW_EYES(self, surface, now, params=None):
         self.random_blink(surface, now)
         self.looks.look_center()
 
@@ -274,7 +289,7 @@ class StateHandler:
         
         surface.blit(eyes_layer, (0, 0))
 
-    def handle_WINK(self, surface, now):
+    def handle_WINK(self, surface, now, params=None):
         # --- LOGIC ---
         # Animation Cycle: 4000ms
         # 0-1000: Open (Both Happy)
@@ -309,6 +324,55 @@ class StateHandler:
         # --- RENDERING ---
         self._draw_happy_eyes(surface)
 
+    def handle_UWU(self, surface, now, params=None):
+        # --- LOGIC ---
+        self.looks.look_center()
+        
+        # --- RENDERING ---
+        line_color = CYAN
+        blush_color = (255, 182, 193) # LightPink
+        
+        lx, ly = int(self.eyes.curr_lx), int(self.eyes.curr_ly)
+        rx, ry = int(self.eyes.curr_rx), int(self.eyes.curr_ry)
+        
+        # 1. Draw Eyes (U shape)
+        eye_radius = 80
+        line_width = 10
+        
+        # Left Eye (pi to 2pi -> Smile/U)
+        l_rect = pygame.Rect(lx - eye_radius, ly - eye_radius - 50, eye_radius*2, eye_radius*2)
+        pygame.draw.arc(surface, line_color, l_rect, math.pi, 2*math.pi, line_width)
+        
+        # Right Eye
+        r_rect = pygame.Rect(rx - eye_radius, ry - eye_radius - 50, eye_radius*2, eye_radius*2)
+        pygame.draw.arc(surface, line_color, r_rect, math.pi, 2*math.pi, line_width)
+        
+        # 2. Draw Mouth
+        # Center between eyes
+        center_x = (lx + rx) // 2
+        # Position slightly higher than before
+        center_y = (ly + ry) // 2 + 60 
+
+        mouth_radius = 40
+        # Left 'u' of mouth
+        mouth_l_rect = pygame.Rect(center_x - 2*mouth_radius, center_y, 2*mouth_radius, 2*mouth_radius)
+        pygame.draw.arc(surface, line_color, mouth_l_rect, math.pi, 2*math.pi, line_width)
+        
+        # Right 'u' of mouth
+        mouth_r_rect = pygame.Rect(center_x, center_y, 2*mouth_radius, 2*mouth_radius)
+        pygame.draw.arc(surface, line_color, mouth_r_rect, math.pi, 2*math.pi, line_width)
+        
+        # 3. Draw Blush
+        # Bigger and lighter
+        blush_w, blush_h = 90, 40
+        blush_offset_y = 60 # Slightly closer to eyes
+        
+        l_blush = pygame.Rect(lx - blush_w//2 - 50, ly + blush_offset_y, blush_w, blush_h)
+        r_blush = pygame.Rect(rx - blush_w//2 + 50, ry + blush_offset_y, blush_w, blush_h)
+        
+        pygame.draw.ellipse(surface, blush_color, l_blush)
+        pygame.draw.ellipse(surface, blush_color, r_blush)
+
     def _draw_happy_eyes(self, surface, color=CYAN):
         lx, ly = int(self.eyes.curr_lx), int(self.eyes.curr_ly)
         rx, ry = int(self.eyes.curr_rx), int(self.eyes.curr_ry)
@@ -332,6 +396,28 @@ class StateHandler:
             border_bottom_left_radius=10,
             border_bottom_right_radius=10)
 
+    def _draw_uwu_mouth(self, surface, color=CYAN):
+        lx, ly = int(self.eyes.curr_lx), int(self.eyes.curr_ly)
+        rx, ry = int(self.eyes.curr_rx), int(self.eyes.curr_ry)
+        
+        # Center between eyes
+        center_x = (lx + rx) // 2
+        # Position below eyes
+        # Eyes are approx at Y=240, height 160. Bottom is 320.
+        center_y = (ly + ry) // 2 + 100 
+
+        radius = 40
+        width = 10
+        
+        # Left 'u'
+        # Arc Pi to 2Pi goes Left -> Bottom -> Right. This forms a 'u' shape.
+        left_rect = pygame.Rect(center_x - 2*radius, center_y, 2*radius, 2*radius)
+        pygame.draw.arc(surface, color, left_rect, math.pi, 2*math.pi, width)
+        
+        # Right 'u' 
+        right_rect = pygame.Rect(center_x, center_y, 2*radius, 2*radius)
+        pygame.draw.arc(surface, color, right_rect, math.pi, 2*math.pi, width)
+
     def _create_rainbow_gradient(self, w, h):
         surf = pygame.Surface((w, h))
         import colorsys
@@ -342,7 +428,7 @@ class StateHandler:
             pygame.draw.line(surf, color, (x, 0), (x, h))
         return surf
 
-    def handle_SLEEPING(self, surface, now):
+    def handle_SLEEPING(self, surface, now, params=None):
         # --- LOGIC ---
         self.eyes.target_x = math.sin(now / 1000) * 15
         self.eyes.target_y = 25
@@ -352,7 +438,7 @@ class StateHandler:
         self._draw_generic(surface)
         self.effects.render_zzz(surface, self.particles)
 
-    def handle_WAKING(self, surface, now):
+    def handle_WAKING(self, surface, now, params=None):
         # --- LOGIC ---
         elapsed = now - self.wake_timer
         if elapsed < 1500: # Stage 0: Jitter
@@ -372,8 +458,38 @@ class StateHandler:
         # --- RENDERING ---
         self._draw_generic(surface)
 
-    def handle_INTERFACE(self, surface, now):
+    def handle_INTERFACE(self, surface, now, params=None):
         pass
+
+    def handle_FUNNY(self, surface, now, params=None):
+        # Trigger GIF playback if not already playing
+        
+        if not self.is_media_playing:
+            # We want to return to ACTIVE (or schedule default) after this, NOT recurse into FUNNY.
+            # So we push ACTIVE to history manually and tell play_gif NOT to save current (FUNNY) state.
+            
+            # Using 0 for entry time and coordinates as defaults
+            fallback_ctx = StateContext(state="ACTIVE", state_entry_time=now, x=0, y=0)
+            self.state_history.append(fallback_ctx)
+        
+            # Placeholder path - user should replace this
+            self.media_player.play_gif("/home/ekko/bot_ekko/bot_ekko/assets/anime.gif", duration=5.0, save_context=False)
+            
+        # Ensure media player updates
+        if self.is_media_playing:
+             self.media_player.update(surface)
+
+    def handle_SHOW_TEXT(self, surface, now, params=None):
+        if not self.is_media_playing:
+            # Fallback to ACTIVE
+            fallback_ctx = StateContext(state="ACTIVE", state_entry_time=now, x=0, y=0)
+            self.state_history.append(fallback_ctx)
+            
+            text = params.get('text', 'Hello!') if params else 'Hello!'
+            self.media_player.show_text(text, duration=5.0, save_context=False)
+            
+        if self.is_media_playing:
+            self.media_player.update(surface)
 
     def _draw_generic(self, surface, color=CYAN):
         state_data = STATES.get(self.state_machine.get_state(), STATES["ACTIVE"])

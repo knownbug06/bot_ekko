@@ -28,10 +28,18 @@ STATES = {
     "HAPPY":      [120, 0.1,  20, 0.4, 0.2],  # Happy layout (arched eyes)
     "RAINBOW_EYES": [210, 0.1,  30, 0.5, 0.15], # Generic shape, rainbow fill
     "WINK":       [160, 0.1,  20, 0.5, 0.2],  # Wink (one eye closed)
+    "UWU":        [160, 0.1,  20, 0.4, 0.2],  # Uwu face
+    "INTERFACE_IMAGE":     [160, 0.1,  30, 0.5, 0.15], # Was NEUTRAL
+    "INTERFACE_PLAY_GIF": [0, 0, 0, 0, 0],    # Media playback state
+    "FUNNY":      [0, 0, 0, 0, 0],    # Funny / Media state
+    "SHOW_TEXT":  [0, 0, 0, 0, 0],    # Show Text state
 }
 
 # BLUETOOTH CONFIGURATION
 BLUETOOTH_NAME = "ekko_bt"
+
+SLEEP_AT = (22, 0)
+WAKE_AT = (7, 0)
 
 
 # LOGGING CONFIGURATION

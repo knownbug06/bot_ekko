@@ -1,162 +1,170 @@
+import threading
+import time
 import pygame
-from PIL import Image
-from bot_ekko.config import LOGICAL_W, LOGICAL_H, CYAN, BLACK
+from PIL import Image, ImageSequence
 from bot_ekko.core.logger import get_logger
+from bot_ekko.config import MAIN_FONT, WHITE, BLACK
 
-logger = get_logger("InterfaceModule")
+logger = get_logger("MediaModule")
 
-class InterfaceModule:
-    """
-    Manages the display of generic media content (Text, Images, GIFs).
-    
-    Acts as a bridge to override the robot's default eye rendering with 
-    custom content when requested.
-    """
-    def __init__(self, state_machine):
-        self.state_machine = state_machine
-        self.content_type = None # "TEXT", "IMAGE", "GIF"
-        self.value = None
-        self.font = pygame.font.SysFont("Arial", 50, bold=True)
-        self.image_surface = None
+class MediaModule(threading.Thread):
+    def __init__(self, state_handler):
+        super().__init__(daemon=True)
+        self.state_handler = state_handler
+        self.current_media_type = None
+        self.media_end_time = 0
         
-        # GIF Logic
+        # Threading control
+        self.running = True
+        self.lock = threading.Lock()
+        
+        # GIF specific
         self.gif_frames = []
-        self.gif_idx = 0
-        self.gif_active = False
+        self.gif_delays = []
+        self.current_frame_index = 0
         self.last_frame_time = 0
-        self.frame_duration = 100 # ms
-
-    def _ensure_interface_state(self):
-        if self.state_machine.get_state() != "INTERFACE":
-            self.state_machine.store_context()
-            self.state_machine.set_state("INTERFACE")
-
-    def set_text(self, text):
-        """
-        Displays a text message on the screen.
         
-        Args:
-            text (str): The string to display.
-        """
-        self._ensure_interface_state()
-            
-        self.content_type = "TEXT"
-        self.value = text
-        self.image_surface = None
-        self._reset_gif()
-
-    def set_image(self, image_path):
-        """
-        Loads and displays a static image.
+        # Image specific
+        self.current_image = None
         
-        Args:
-           image_path (str): Absolute or relative path to the image file.
-        """
-        self._ensure_interface_state()
+        # Text specific
+        self.current_text = ""
+        self.text_surface = None
 
-        self.content_type = "IMAGE"
-        self.value = image_path
-        self._reset_gif()
+    def _start_media(self, duration=None, save_context=True):
+        """Helper to start media playback and handling state context."""
+        if save_context:
+            self.state_handler.save_state_ctx()
+        self.state_handler.is_media_playing = True
+        if duration:
+            self.media_end_time = time.time() + duration
+        else:
+            self.media_end_time = 0 # Indefinite or controlled by logic (like GIF loop)
+
+    def play_gif(self, path, duration=None, save_context=True):
         try:
-            img = pygame.image.load(image_path)
-            # Use convert() for speed
-            self.image_surface = pygame.transform.scale(img, (LOGICAL_W, LOGICAL_H)).convert()
+            pil_image = Image.open(path)
+            frames = []
+            delays = []
+            
+            # Extract frames and duration
+            for frame in ImageSequence.Iterator(pil_image):
+                # Convert to RGBA and then to pygame surface
+                frame_rgba = frame.convert("RGBA")
+                mode = frame_rgba.mode
+                size = frame_rgba.size
+                data = frame_rgba.tobytes()
+                
+                py_image = pygame.image.fromstring(data, size, mode)
+                frames.append(py_image)
+                delays.append(frame.info.get('duration', 100) / 1000.0) # Convert ms to seconds
+
+            if not frames:
+                logger.error(f"No frames found in GIF: {path}")
+                return
+
+            with self.lock:
+                self.gif_frames = frames
+                self.gif_delays = delays
+                self.current_frame_index = 0
+                self.last_frame_time = time.time()
+                self.current_media_type = "GIF"
+            
+            self._start_media(duration, save_context)
+            logger.info(f"Playing GIF: {path} for {duration}s")
+            
         except Exception as e:
-            logger.error(f"Error loading image: {e}")
-            self.set_text(f"Error: {e}")
+            logger.error(f"Failed to load GIF {path}: {e}")
 
-    def set_gif(self, gif_path):
-        """
-        Loads and plays a GIF animation.
-        
-        Args:
-            gif_path (str): Absolute or relative path to the GIF file.
-        """
-        self._ensure_interface_state()
+    def show_image(self, path, duration=5.0, save_context=True):
+        try:
+            image = pygame.image.load(path)
+            with self.lock:
+                self.current_image = image
+                self.current_media_type = "IMAGE"
+            self._start_media(duration, save_context)
+            logger.info(f"Showing Image: {path} for {duration}s")
+        except Exception as e:
+            logger.error(f"Failed to load Image {path}: {e}")
 
-        if self.content_type == "GIF" and self.value == gif_path and self.gif_frames:
-            # Already loaded, just ensure active
-            self.gif_active = True
+    def show_text(self, text, duration=5.0, save_context=True):
+        # Render text once
+        surf = MAIN_FONT.render(text, True, CYAN)
+        with self.lock:
+            self.current_text = text
+            self.text_surface = surf
+            self.current_media_type = "TEXT"
+        self._start_media(duration, save_context)
+        logger.info(f"Showing Text: '{text}' for {duration}s")
+
+    def stop_media(self):
+        """Stops media and restores state."""
+        if self.state_handler.is_media_playing:
+            self.state_handler.is_media_playing = False
+            with self.lock:
+                self.current_media_type = None
+            self.state_handler.restore_state_ctx()
+            logger.info("Media stopped, state restored.")
+
+    def run(self):
+        """Background loop to handle media timing and updates."""
+        logger.info("MediaModule thread started")
+        while self.running:
+            if not self.state_handler.is_media_playing:
+                time.sleep(0.1)
+                continue
+
+            # Check duration expiry
+            if self.media_end_time > 0 and time.time() > self.media_end_time:
+                self.stop_media()
+                continue
+
+            with self.lock:
+                media_type = self.current_media_type
+                
+            if media_type == "GIF":
+                now = time.time()
+                with self.lock:
+                    if self.gif_delays:
+                        current_delay = self.gif_delays[self.current_frame_index]
+                    else:
+                        current_delay = 0.1
+                    
+                if now - self.last_frame_time >= current_delay:
+                    with self.lock:
+                        if self.gif_frames:
+                            self.current_frame_index = (self.current_frame_index + 1) % len(self.gif_frames)
+                            self.last_frame_time = now
+                    # Calculate sleep to avoid busy loop, but be responsive
+                    time.sleep(max(0.001, current_delay - (time.time() - now)))
+                else:
+                    time.sleep(0.01)
+            else:
+                 time.sleep(0.1)
+
+    def update(self, surface):
+        """
+        Renders the current media frame to the surface.
+        Safe to call from main thread.
+        """
+        if not self.state_handler.is_media_playing:
             return
 
-        self.content_type = "GIF"
-        self.value = gif_path
-        self._reset_gif()
-        
-        try:
-            pil_img = Image.open(gif_path)
-            self.gif_frames = []
+        with self.lock:
+            media_type = self.current_media_type
             
-            # Extract duration if available
-            if 'duration' in pil_img.info:
-                self.frame_duration = pil_img.info['duration']
-            
-            # Iterate frames
-            try:
-                while True:
-                    # Convert to RGBA forpygame
-                    frame = pil_img.convert("RGBA")
-                    mode = frame.mode
-                    size = frame.size
-                    data = frame.tobytes()
-                    
-                    py_img = pygame.image.fromstring(data, size, mode)
-                    
-                    # Scale to fit screen
-                    # py_img = pygame.transform.scale(py_img, (LOGICAL_W, LOGICAL_H))
-                    
-                    # Optimization: Convert to display format for hardware acceleration
-                    # This does NOT change how it looks, but makes drawing much faster (GPU-friendly)
-                    if pygame.display.get_init():
-                         py_img = py_img.convert()
-                    
-                    self.gif_frames.append(py_img)
-                    
-                    pil_img.seek(pil_img.tell() + 1)
-            except EOFError:
-                pass # End of frames
+            if media_type == "GIF":
+                if self.gif_frames:
+                    frame = self.gif_frames[self.current_frame_index]
+                    rect = frame.get_rect(center=(surface.get_width() // 2, surface.get_height() // 2))
+                    surface.blit(frame, rect)
                 
-            self.gif_active = True
-            logger.info(f"Loaded GIF: {gif_path} ({len(self.gif_frames)} frames)")
-            
-        except Exception as e:
-            logger.error(f"Error loading GIF: {e}")
-            self.set_text(f"Error GIF: {e}")
-
-    def _reset_gif(self):
-        self.gif_frames = []
-        self.gif_idx = 0
-        self.gif_active = False
-        self.last_frame_time = 0
-
-    def clear(self):
-        """
-        Clears the current interface content and restores the previous robot state.
-        """
-        self.content_type = None
-        self.value = None
-        self.image_surface = None
-        self._reset_gif()
-        self.state_machine.restore_context()
-
-    def draw(self, surface):
-        surface.fill(BLACK)
-        if self.content_type == "TEXT" and self.value:
-            # Wrap text if needed or just center simple text
-            text_surf = self.font.render(str(self.value), True, CYAN)
-            rect = text_surf.get_rect(center=(LOGICAL_W//2, LOGICAL_H//2))
-            surface.blit(text_surf, rect)
-            
-        elif self.content_type == "IMAGE" and self.image_surface:
-            rect = self.image_surface.get_rect(center=(LOGICAL_W//2, LOGICAL_H//2))
-            surface.blit(self.image_surface, rect)
-            
-        elif self.content_type == "GIF" and self.gif_active and self.gif_frames:
-             now = pygame.time.get_ticks()
-             if now - self.last_frame_time > self.frame_duration:
-                 self.gif_idx = (self.gif_idx + 1) % len(self.gif_frames)
-                 self.last_frame_time = now
-             
-             current_frame = self.gif_frames[self.gif_idx]
-             rect = current_frame.get_rect(center=(LOGICAL_W//2, LOGICAL_H//2))
-             surface.blit(current_frame, rect)
+            elif media_type == "IMAGE":
+                if self.current_image:
+                    rect = self.current_image.get_rect(center=(surface.get_width() // 2, surface.get_height() // 2))
+                    surface.blit(self.current_image, rect)
+                    
+            elif media_type == "TEXT":
+                if self.text_surface:
+                     rect = self.text_surface.get_rect(center=(surface.get_width() // 2, surface.get_height() // 2))
+                     surface.blit(self.text_surface, rect)

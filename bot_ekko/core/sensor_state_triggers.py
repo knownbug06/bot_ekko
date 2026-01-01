@@ -36,7 +36,7 @@ class SensorStateTrigger:
                 if self.wait_sensor_trigger(SENSOR_TRIGGER_ENTRY_TIME):
                     self.state_handler.save_state_ctx()
                     self.state_handler.interrupt_state = True
-                    self.state_handler.set_state("ANGRY")
+                    self.state_handler.set_state("UWU")
                     logger.info("Triggering RAINBOW_EYES state from proximity")
             # If already interrupted, stay in state (do nothing)
             
