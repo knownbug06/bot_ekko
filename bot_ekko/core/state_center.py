@@ -8,103 +8,34 @@ from bot_ekko.modules.effects import EffectsRenderer
 from bot_ekko.modules.media_interface import MediaModule
 from bot_ekko.core.movements import Looks
 from bot_ekko.core.logger import get_logger
-from bot_ekko.core.models import StateContext
+from bot_ekko.core.models import StateContext, CommandNames
 
 logger = get_logger("StateHandler")
 
-class StateHandler:
-    """
-    Handles state logic, transitions, and rendering delegation for the robot's eyes.
-
-    This class manages the lifecycle of different emotional and functional states 
-    (e.g., ACTIVE, SLEEPING, INTERFACE), handling both the logic updates 
-    (movement, blinking) and the rendering calls.
-    """
-    def __init__(self, eyes, state_machine):
+class StateRenderer:
+    def __init__(self, eyes, state_handler, command_center=None, media_player=None):
         self.eyes = eyes
-        self.state_machine = state_machine
         self.last_blink = 0
         self.last_mood_change = 0
-
-        self.looks = Looks(self.eyes, self)        
-        # State logic variables
-        self.wake_stage = 0 
-        self.wake_timer = 0
-        self.particles = [] # For Zzz
+        self.command_center = command_center
+        self.state_handler = state_handler
+        self.media_player = media_player
+        
+        # Rendering attributes
         self.effects = EffectsRenderer()
-        self.media_player = None # Injected from main
+        self.particles = []
+        self.wake_stage = 0
+        
+        # Proxies to StateHandler attributes needed for logic/rendering
+        self.looks = Looks(self.eyes, state_handler.state_machine)
+        self.state_machine = state_handler.state_machine
 
-        self.is_media_playing = False
-
-        self.interrupt_state = False
-        self.state_entry_time = 0
-    
-        self.state_history = deque(maxlen=5)
-        self.current_state_params = None
-    
-    def get_current_state_ctx(self):
-        return StateContext(
-            state=self.state_machine.get_state(),
-            state_entry_time=self.state_entry_time,
-            x=self.eyes.target_x,
-            y=self.eyes.target_y
-        )
-    
-    def save_state_ctx(self):
-        """
-        Saves the current state context (state, entry time, eye position) to history.
-        
-        This is typically used before interrupting the current state with a temporary 
-        priority state (like a sensor trigger or interface overlay).
-        """
-        state_ctx = self.get_current_state_ctx()
-        self.state_history.append(state_ctx)
-    
-    def restore_state_ctx(self):
-        """
-        Restores the most recently saved state context from history.
-        
-        This returns the robot to the previous state after an interruption.
-        """
-        if self.state_history:
-            state_ctx = self.state_history.pop()
-            self.set_state(state_ctx.state)
-            self.state_entry_time = state_ctx.state_entry_time
-            self.eyes.target_x = state_ctx.x
-            self.eyes.target_y = state_ctx.y
-            logger.info(f"Context restored to: {state_ctx}")
-
-    def set_state(self, new_state, params=None):
-        """
-        Transitions to a new state.
-        
-        Args:
-            new_state (str): The name of the target state (must verify against config.STATES).
-            params (dict, optional): Parameters to pass to the state handler. Defaults to None.
-        """
-        args = []
-        if isinstance(new_state, tuple):
-             new_state, *args = new_state
-        
-        # Update params regardless of state change (sometimes we re-set same state with new params)
-        self.current_state_params = params
-
-        current_state = self.state_machine.get_state()
-        if current_state != new_state:
-            self.state_machine.set_state(new_state)
-            self.state_entry_time = pygame.time.get_ticks()
-            logger.info(f"State transition: {current_state} -> {new_state}, state_entry_time: {self.state_entry_time}")
-        
-        if self.state_machine.get_state() == "WAKING":
-            self.wake_stage = 0
-            self.wake_timer = pygame.time.get_ticks()
-            # Mood/State params are handled by body physics now
 
     def trigger_wake(self):
         """Force wake up sequence."""
-        if self.state_machine.get_state() == "SLEEPING":
+        if self.state_handler.get_state() == "SLEEPING":
             logger.info("Triggering WAKING state from SLEEPING")
-            self.set_state("WAKING")
+            self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "WAKING"})
 
     def handle_states(self, surface, now, sleep_h, sleep_m, wake_h, wake_m):
         """
@@ -113,18 +44,18 @@ class StateHandler:
         Checks schedules, determines the current state, and calls the appropriate 
         specific handler method (e.g., handle_ACTIVE).
         """
-        if not self.is_media_playing:
+        if not self.state_handler.is_media_playing:
             self._check_schedule(sleep_h, sleep_m, wake_h, wake_m)
         
-            current_state = self.state_machine.get_state()
+            current_state = self.state_handler.get_state()
             handler_name = f"handle_{current_state}"
             handler = getattr(self, handler_name, None)
             if handler:
-                handler(surface, now, self.current_state_params)
+                handler(surface, now, self.state_handler.current_state_params)
             else:
                 logger.warning(f"Warning: No handler for state {current_state}")
         else:
-            self.media_player.update(surface)
+            self.state_handler.media_player.update(surface)
 
     def _check_schedule(self, sleep_h, sleep_m, wake_h, wake_m):
         now_dt = datetime.now()
@@ -137,16 +68,16 @@ class StateHandler:
         else: # Same day
             in_sleep = sleep_total <= current_total < wake_total
 
-        current_state = self.state_machine.get_state()
+        current_state = self.state_handler.get_state()
         if in_sleep:
-            if current_state != "SLEEPING" and current_state != "WAKING" and not self.interrupt_state:
+            if current_state != "SLEEPING" and current_state != "WAKING" and not self.state_handler.interrupt_state:
                 logger.info("Triggering SLEEPING state from schedule")
-                self.set_state("SLEEPING")
+                self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "SLEEPING"})
         else:
             if current_state == "SLEEPING":
                 logger.info("Triggering WAKING state from schedule")
-                self.set_state("WAKING")
-    
+                self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "WAKING"})
+
     def random_blink(self, surface, now):
         if self.eyes.blink_phase == "IDLE" and (now - self.last_blink > random.randint(3000, 9000)):
             self.eyes.blink_phase = "CLOSING"
@@ -164,13 +95,11 @@ class StateHandler:
         if now - self.last_mood_change > random.randint(5000, 12000):
             if random.random() > 0.6:
                 logger.info("Triggering SQUINTING state from random mood")
-                self.set_state("SQUINTING")
+                self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "SQUINTING"})
                 self.last_mood_change = now
 
         # 3. Random Blink
         self.random_blink(surface, now)
-
-            
         # --- RENDERING ---
         self._draw_generic(surface)
 
@@ -183,9 +112,9 @@ class StateHandler:
             
         if now - self.last_mood_change > random.randint(2000, 5000):
             logger.info("Triggering ACTIVE state from random mood")
-            self.set_state("ACTIVE")
+            self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "ACTIVE"})
             self.last_mood_change = now
-             
+            
         # --- RENDERING ---
         self._draw_generic(surface)
     
@@ -373,6 +302,57 @@ class StateHandler:
         pygame.draw.ellipse(surface, blush_color, l_blush)
         pygame.draw.ellipse(surface, blush_color, r_blush)
 
+    def handle_SLEEPING(self, surface, now, params=None):
+        # --- LOGIC ---
+        self.eyes.target_x = math.sin(now / 1000) * 15
+        self.eyes.target_y = 25
+        self._update_particles(now)
+        
+        # --- RENDERING ---
+        self._draw_generic(surface)
+        self.effects.render_zzz(surface, self.particles)
+
+    def handle_WAKING(self, surface, now, params=None):
+        # --- LOGIC ---
+        elapsed = now - self.state_handler.state_entry_time
+        if elapsed < 1500: # Stage 0: Jitter
+            self.wake_stage = 0
+            self.eyes.target_x = random.randint(-25, 25)
+            self.eyes.target_y = random.randint(-25, 25)
+            if random.random() > 0.7: self.eyes.blink_phase = "CLOSING"
+        elif elapsed < 4000: # Stage 1: Confusion
+            self.wake_stage = 1
+            self.eyes.target_x = -50
+            self.eyes.curr_lh, self.eyes.curr_rh = 140, 60 
+        else: # Stage 2: Fully Awake
+            logger.info("Triggering ACTIVE state from WAKING")
+            self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "ACTIVE"})
+            self.last_mood_change = now
+            
+        # --- RENDERING ---
+        self._draw_generic(surface)
+
+    def handle_INTERFACE(self, surface, now, params=None):
+        pass
+
+    def handle_FUNNY(self, surface, now, params=None):
+        # Trigger GIF playback if not already playing
+        
+        if not self.state_handler.is_media_playing:
+            # We want to return to ACTIVE (or schedule default) after this, NOT recurse into FUNNY.
+            # So we push ACTIVE to history manually and tell play_gif NOT to save current (FUNNY) state.
+            
+            # Using 0 for entry time and coordinates as defaults
+            fallback_ctx = StateContext(state="ACTIVE", state_entry_time=now, x=0, y=0)
+            self.state_handler.state_history.append(fallback_ctx)
+        
+            # Placeholder path - user should replace this
+            self.state_handler.media_player.play_gif("/home/ekko/bot_ekko/bot_ekko/assets/anime.gif", duration=5.0, save_context=False)
+            
+        # Ensure media player updates
+        if self.state_handler.is_media_playing:
+             self.state_handler.media_player.update(surface)
+
     def _draw_happy_eyes(self, surface, color=CYAN):
         lx, ly = int(self.eyes.curr_lx), int(self.eyes.curr_ly)
         rx, ry = int(self.eyes.curr_rx), int(self.eyes.curr_ry)
@@ -427,59 +407,6 @@ class StateHandler:
             color = (int(rgb[0]*255), int(rgb[1]*255), int(rgb[2]*255))
             pygame.draw.line(surf, color, (x, 0), (x, h))
         return surf
-
-    def handle_SLEEPING(self, surface, now, params=None):
-        # --- LOGIC ---
-        self.eyes.target_x = math.sin(now / 1000) * 15
-        self.eyes.target_y = 25
-        self._update_particles(now)
-        
-        # --- RENDERING ---
-        self._draw_generic(surface)
-        self.effects.render_zzz(surface, self.particles)
-
-    def handle_WAKING(self, surface, now, params=None):
-        # --- LOGIC ---
-        elapsed = now - self.wake_timer
-        if elapsed < 1500: # Stage 0: Jitter
-            self.wake_stage = 0
-            self.eyes.target_x = random.randint(-25, 25)
-            self.eyes.target_y = random.randint(-25, 25)
-            if random.random() > 0.7: self.eyes.blink_phase = "CLOSING"
-        elif elapsed < 4000: # Stage 1: Confusion
-            self.wake_stage = 1
-            self.eyes.target_x = -50
-            self.eyes.curr_lh, self.eyes.curr_rh = 140, 60 
-        else: # Stage 2: Fully Awake
-            logger.info("Triggering ACTIVE state from WAKING")
-            self.set_state("ACTIVE")
-            self.last_mood_change = now
-            
-        # --- RENDERING ---
-        self._draw_generic(surface)
-
-    def handle_INTERFACE(self, surface, now, params=None):
-        pass
-
-    def handle_FUNNY(self, surface, now, params=None):
-        # Trigger GIF playback if not already playing
-        
-        if not self.is_media_playing:
-            # We want to return to ACTIVE (or schedule default) after this, NOT recurse into FUNNY.
-            # So we push ACTIVE to history manually and tell play_gif NOT to save current (FUNNY) state.
-            
-            # Using 0 for entry time and coordinates as defaults
-            fallback_ctx = StateContext(state="ACTIVE", state_entry_time=now, x=0, y=0)
-            self.state_history.append(fallback_ctx)
-        
-            # Placeholder path - user should replace this
-            self.media_player.play_gif("/home/ekko/bot_ekko/bot_ekko/assets/anime.gif", duration=5.0, save_context=False)
-            
-        # Ensure media player updates
-        if self.is_media_playing:
-             self.media_player.update(surface)
-
-    def handle_SHOW_TEXT(self, surface, now, params=None):
         if not self.is_media_playing:
             # Fallback to ACTIVE
             fallback_ctx = StateContext(state="ACTIVE", state_entry_time=now, x=0, y=0)
@@ -523,3 +450,114 @@ class StateHandler:
             p2 = points[(i + 1) % len(points)]
             pygame.draw.circle(surface, color, p1, radius)
             pygame.draw.line(surface, color, p1, p2, width=radius * 2)
+
+    
+
+class StateHandler:
+    """
+    Handles state logic, transitions, and rendering delegation for the robot's eyes.
+
+    This class manages the lifecycle of different emotional and functional states 
+    (e.g., ACTIVE, SLEEPING, INTERFACE), handling both the logic updates 
+    (movement, blinking) and the rendering calls.
+    """
+    def __init__(self, eyes, state_machine):
+        self.eyes = eyes
+        self.state_machine = state_machine
+
+        # State logic variables
+        self._media_player = None # Injected from main
+        self._command_center = None
+
+        self.is_media_playing = False
+
+        self.interrupt_state = False
+        self.state_entry_time = 0
+    
+        self.state_history = deque(maxlen=5)
+        self.current_state_params = None
+
+        # Instantiate Renderer
+        self.renderer = StateRenderer(eyes, self)
+    
+    @property
+    def media_player(self):
+        return self._media_player
+    
+    @media_player.setter
+    def media_player(self, value):
+        self._media_player = value
+        if self.renderer:
+            self.renderer.media_player = value
+
+    @property
+    def command_center(self):
+        return self._command_center
+    
+    @command_center.setter
+    def command_center(self, value):
+        self._command_center = value
+        if self.renderer:
+            self.renderer.command_center = value
+
+    def handle_states(self, surface, now, sleep_h, sleep_m, wake_h, wake_m):
+        """Delegates rendering/update loop to the renderer."""
+        self.renderer.handle_states(surface, now, sleep_h, sleep_m, wake_h, wake_m)
+    
+    def get_state(self):
+        return self.state_machine.get_state()
+    
+    def get_current_state_ctx(self):
+        return StateContext(
+            state=self.state_machine.get_state(),
+            state_entry_time=self.state_entry_time,
+            x=self.eyes.target_x,
+            y=self.eyes.target_y
+        )
+    
+    def save_state_ctx(self):
+        """
+        Saves the current state context (state, entry time, eye position) to history.
+        
+        This is typically used before interrupting the current state with a temporary 
+        priority state (like a sensor trigger or interface overlay).
+        """
+        state_ctx = self.get_current_state_ctx()
+        self.state_history.append(state_ctx)
+    
+    def restore_state_ctx(self):
+        """
+        Restores the most recently saved state context from history.
+        
+        This returns the robot to the previous state after an interruption.
+        """
+        if self.state_history:
+            state_ctx = self.state_history.pop()
+            self.set_state(state_ctx.state)
+            self.state_entry_time = state_ctx.state_entry_time
+            self.eyes.target_x = state_ctx.x
+            self.eyes.target_y = state_ctx.y
+            logger.info(f"Context restored to: {state_ctx}")
+
+    def set_state(self, new_state, params=None):
+        """
+        Transitions to a new state.
+        
+        Args:
+            new_state (str): The name of the target state (must verify against config.STATES).
+            params (dict, optional): Parameters to pass to the state handler. Defaults to None.
+        """
+        args = []
+        if isinstance(new_state, tuple):
+             new_state, *args = new_state
+        
+        # Update params regardless of state change (sometimes we re-set same state with new params)
+        self.current_state_params = params
+
+        current_state = self.state_machine.get_state()
+        if current_state != new_state:
+            self.state_machine.set_state(new_state)
+            self.state_entry_time = pygame.time.get_ticks()
+            logger.info(f"State transition: {current_state} -> {new_state}, state_entry_time: {self.state_entry_time}")
+        
+        # Mood/State params are handled by body physics now

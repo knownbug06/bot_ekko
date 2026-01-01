@@ -3,7 +3,7 @@ import sys
 import signal
 import queue
 import random
-from bot_ekko.core.state_handler import StateHandler
+from bot_ekko.core.state_center import StateHandler
 from bot_ekko.modules.media_interface import MediaModule
 from bot_ekko.modules.sensor_fusion.sensor_data_reader import ReadSensorSerialData
 from bot_ekko.modules.comms.comms_bluetooth import BluetoothManager
@@ -38,8 +38,14 @@ def main():
     state_handler = StateHandler(eyes, state_machine)
     
     media_module = MediaModule(state_handler)
+    media_module = MediaModule(state_handler)
     state_handler.media_player = media_module
     media_module.start()
+    
+    # Inject Command Center
+    from bot_ekko.core.command_center import CommandCenter
+    command_center = CommandCenter(cmd_queue, state_handler)
+    state_handler.command_center = command_center
     
     sensor_reader = ReadSensorSerialData(cmd_queue)
     sensor_reader.start()

@@ -6,7 +6,7 @@ import sys
 # Add project root to path
 sys.path.append("/home/ekko/bot_ekko")
 
-from bot_ekko.core.state_handler import StateHandler
+from bot_ekko.core.state_center import StateHandler
 from bot_ekko.modules.media_interface import InterfaceModule
 
 class TestStateHandlerInterface(unittest.TestCase):
