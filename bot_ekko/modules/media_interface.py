@@ -3,7 +3,7 @@ import time
 import pygame
 from PIL import Image, ImageSequence
 from bot_ekko.core.logger import get_logger
-from bot_ekko.config import MAIN_FONT, WHITE, BLACK
+from bot_ekko.config import *
 
 logger = get_logger("MediaModule")
 
