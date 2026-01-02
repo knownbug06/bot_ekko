@@ -1,7 +1,7 @@
 
 import logging
 import sys
-from bot_ekko.config import LOG_LEVEL
+from bot_ekko.sys_config import LOG_LEVEL
 
 def get_logger(name):
     logger = logging.getLogger(name)

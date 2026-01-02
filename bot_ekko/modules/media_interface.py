@@ -3,16 +3,26 @@ import time
 import pygame
 from PIL import Image, ImageSequence
 from bot_ekko.core.logger import get_logger
-from bot_ekko.config import MAIN_FONT, WHITE, BLACK
+from bot_ekko.sys_config import *
+# from bot_ekko.core.interrupt_manager import InterruptManager # Avoid circular import if possible, use typing only
+from typing import Optional, TYPE_CHECKING
+if TYPE_CHECKING:
+    from bot_ekko.core.interrupt_manager import InterruptManager
 
 logger = get_logger("MediaModule")
 
 class MediaModule(threading.Thread):
-    def __init__(self, state_handler):
+    def __init__(self, state_handler, interrupt_manager: Optional['InterruptManager'] = None):
         super().__init__(daemon=True)
         self.state_handler = state_handler
+        self.interrupt_manager = interrupt_manager
+        self.current_media_type = None
         self.current_media_type = None
         self.media_end_time = 0
+        self.current_interrupt_name = None
+        
+        # Internal state
+        self.is_playing = False
         
         # Threading control
         self.running = True
@@ -31,17 +41,20 @@ class MediaModule(threading.Thread):
         self.current_text = ""
         self.text_surface = None
 
-    def _start_media(self, duration=None, save_context=True):
+    def _start_media(self, duration=None, save_context=True, interrupt_name=None):
         """Helper to start media playback and handling state context."""
         if save_context:
             self.state_handler.save_state_ctx()
-        self.state_handler.is_media_playing = True
+            
+        self.current_interrupt_name = interrupt_name
+        self.is_playing = True
+        
         if duration:
             self.media_end_time = time.time() + duration
         else:
             self.media_end_time = 0 # Indefinite or controlled by logic (like GIF loop)
 
-    def play_gif(self, path, duration=None, save_context=True):
+    def play_gif(self, path, duration=None, save_context=True, interrupt_name=None):
         try:
             pil_image = Image.open(path)
             frames = []
@@ -70,47 +83,54 @@ class MediaModule(threading.Thread):
                 self.last_frame_time = time.time()
                 self.current_media_type = "GIF"
             
-            self._start_media(duration, save_context)
+            self._start_media(duration, save_context, interrupt_name)
             logger.info(f"Playing GIF: {path} for {duration}s")
             
         except Exception as e:
             logger.error(f"Failed to load GIF {path}: {e}")
 
-    def show_image(self, path, duration=5.0, save_context=True):
+    def show_image(self, path, duration=5.0, save_context=True, interrupt_name=None):
         try:
             image = pygame.image.load(path)
             with self.lock:
                 self.current_image = image
                 self.current_media_type = "IMAGE"
-            self._start_media(duration, save_context)
+            self._start_media(duration, save_context, interrupt_name)
             logger.info(f"Showing Image: {path} for {duration}s")
         except Exception as e:
             logger.error(f"Failed to load Image {path}: {e}")
 
-    def show_text(self, text, duration=5.0, save_context=True):
+    def show_text(self, text, duration=5.0, save_context=True, interrupt_name=None):
         # Render text once
         surf = MAIN_FONT.render(text, True, CYAN)
         with self.lock:
             self.current_text = text
             self.text_surface = surf
             self.current_media_type = "TEXT"
-        self._start_media(duration, save_context)
+        self._start_media(duration, save_context, interrupt_name)
         logger.info(f"Showing Text: '{text}' for {duration}s")
 
     def stop_media(self):
         """Stops media and restores state."""
-        if self.state_handler.is_media_playing:
-            self.state_handler.is_media_playing = False
+        if self.is_playing:
+            self.is_playing = False
             with self.lock:
                 self.current_media_type = None
-            self.state_handler.restore_state_ctx()
-            logger.info("Media stopped, state restored.")
+            
+            if self.current_interrupt_name and self.interrupt_manager:
+                logger.info(f"Clearing interrupt: {self.current_interrupt_name}")
+                self.interrupt_manager.clear_interrupt(self.current_interrupt_name)
+                self.current_interrupt_name = None
+            else:
+                self.state_handler.restore_state_ctx()
+            
+            logger.info("Media stopped.")
 
     def run(self):
         """Background loop to handle media timing and updates."""
         logger.info("MediaModule thread started")
         while self.running:
-            if not self.state_handler.is_media_playing:
+            if not self.is_playing:
                 time.sleep(0.1)
                 continue
 
@@ -147,7 +167,7 @@ class MediaModule(threading.Thread):
         Renders the current media frame to the surface.
         Safe to call from main thread.
         """
-        if not self.state_handler.is_media_playing:
+        if not self.is_playing:
             return
 
         with self.lock:
