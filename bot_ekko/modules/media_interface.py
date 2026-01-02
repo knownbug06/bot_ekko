@@ -3,7 +3,7 @@ import time
 import pygame
 from PIL import Image, ImageSequence
 from bot_ekko.core.logger import get_logger
-from bot_ekko.config import *
+from bot_ekko.sys_config import *
 # from bot_ekko.core.interrupt_manager import InterruptManager # Avoid circular import if possible, use typing only
 from typing import Optional, TYPE_CHECKING
 if TYPE_CHECKING:

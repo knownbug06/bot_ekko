@@ -1,5 +1,5 @@
 from bot_ekko.core.models import CommandNames, CommandCtx
-from bot_ekko.core.state_center import StateHandler
+from bot_ekko.core.state_machine import StateHandler
 from bot_ekko.core.logger import get_logger
 import queue
 from typing import Optional

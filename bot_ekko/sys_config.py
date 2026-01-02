@@ -39,8 +39,9 @@ STATES = {
 # BLUETOOTH CONFIGURATION
 BLUETOOTH_NAME = "ekko_bt"
 
-SLEEP_AT = (24, 0)
-WAKE_AT = (7, 0)
+SCHEDULE_FILE_PATH = "/home/ekko/bot_ekko/schedule.json"
+
+# SLEEP_AT and WAKE_AT are now managed by schedule.json
 
 
 # LOGGING CONFIGURATION

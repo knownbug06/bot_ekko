@@ -1,17 +1,16 @@
 import random
 import math
 import pygame
-from collections import deque
 from datetime import datetime
-from bot_ekko.config import *
+from bot_ekko.sys_config import *
 from bot_ekko.modules.effects import EffectsRenderer
 from bot_ekko.modules.media_interface import MediaModule
 from bot_ekko.core.movements import Looks
 from bot_ekko.core.logger import get_logger
 from bot_ekko.core.models import StateContext, CommandNames
+from bot_ekko.core.scheduler import Scheduler
 
-logger = get_logger("StateHandler")
-
+logger = get_logger("StateRenderer")
 
 class StateRenderer:
     def __init__(self, eyes, state_handler, command_center, interrupt_manager=None):
@@ -30,9 +29,8 @@ class StateRenderer:
         self.particles = []
         self.wake_stage = 0
         
-        # State Flags
-        # self.is_media_playing = False # Moved to StateHandler
-        # self.interrupt_state = False (Managed by InterruptManager)
+        # Scheduler
+        self.scheduler = Scheduler(SCHEDULE_FILE_PATH)
         
         # Proxies to StateHandler attributes needed for logic/rendering
         self.looks = Looks(self.eyes, state_handler.state_machine)
@@ -45,14 +43,14 @@ class StateRenderer:
             logger.info("Triggering WAKING state from SLEEPING")
             self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "WAKING"})
 
-    def render(self, surface, now, sleep_h, sleep_m, wake_h, wake_m):
+    def render(self, surface, now):
         """
         Main update loop for state handling.
         
         Checks schedules, determines the current state, and calls the appropriate 
         specific handler method (e.g., handle_ACTIVE).
         """
-        self._check_schedule(sleep_h, sleep_m, wake_h, wake_m)
+        self._check_schedule(now)
     
         current_state = self.state_handler.get_state()
         handler_name = f"handle_{current_state}"
@@ -62,26 +60,43 @@ class StateRenderer:
         else:
             logger.warning(f"Warning: No handler for state {current_state}")
 
-    def _check_schedule(self, sleep_h, sleep_m, wake_h, wake_m):
+    def _check_schedule(self, now):
+        # Grace period on startup (2 seconds) to ensure we start in ACTIVE/Initial state
+        if now < 2000:
+            return
+
         now_dt = datetime.now()
-        current_total = now_dt.hour * 60 + now_dt.minute
-        sleep_total = sleep_h * 60 + sleep_m
-        wake_total = wake_h * 60 + wake_m
-
-        if sleep_total > wake_total: # Over midnight
-            in_sleep = current_total >= sleep_total or current_total < wake_total
-        else: # Same day
-            in_sleep = sleep_total <= current_total < wake_total
-
         current_state = self.state_handler.get_state()
-        if in_sleep:
-            if current_state != "SLEEPING" and current_state != "WAKING":
-                logger.info("Triggering SLEEPING state from schedule")
-                self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "SLEEPING"})
+        
+        result = self.scheduler.get_target_state(now_dt, current_state)
+
+        if result:
+            target_state, params = result
+            
+            # Prepare params with source tracking
+            cmd_params = params.copy() if params else {}
+            cmd_params["_source"] = "scheduler"
+            
+            # Scheduler says we should be in target_state
+            if current_state != target_state:
+                logger.info(f"Triggering {target_state} state from schedule with params: {params}")
+                self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": target_state, "params": cmd_params})
         else:
-            if current_state == "SLEEPING":
-                logger.info("Triggering WAKING state from schedule")
-                self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "WAKING"})
+            # No active schedule
+            # Check if we are currently in a state triggered by the scheduler
+            current_wrapper = self.state_handler.current_state_params or {}
+            current_params = current_wrapper.get("params", {}) if isinstance(current_wrapper, dict) else {}
+            
+            # Helper to handle case where params might be flattened or nested (defensive)
+            source = current_params.get("_source") if isinstance(current_params, dict) else None
+            
+            if source == "scheduler":
+                if current_state == "SLEEPING":
+                     logger.info("Triggering WAKING state (Schedule ended)")
+                     self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "WAKING"})
+                else:
+                     logger.info(f"Reverting to ACTIVE from {current_state} (Schedule ended)")
+                     self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "ACTIVE"})
 
     def random_blink(self, surface, now):
         if self.eyes.blink_phase == "IDLE" and (now - self.last_blink > random.randint(3000, 9000)):
@@ -478,78 +493,3 @@ class StateRenderer:
             pygame.draw.circle(surface, color, p1, radius)
             pygame.draw.line(surface, color, p1, p2, width=radius * 2) 
 
-
-class StateHandler:
-    """
-    Handles state logic, transitions, and rendering delegation for the robot's eyes.
-
-    This class manages the lifecycle of different emotional and functional states 
-    (e.g., ACTIVE, SLEEPING, INTERFACE), handling both the logic updates 
-    (movement, blinking) and the rendering calls.
-    """
-    def __init__(self, eyes, state_machine):
-        self.eyes = eyes
-        self.state_machine = state_machine
-        self.state_entry_time = 0
-    
-        self.state_history = deque(maxlen=5)
-        self.current_state_params = None
-        self.is_media_playing = False
-    
-    def get_state(self):
-        return self.state_machine.get_state()
-    
-    def get_current_state_ctx(self):
-        return StateContext(
-            state=self.state_machine.get_state(),
-            state_entry_time=self.state_entry_time,
-            x=self.eyes.target_x,
-            y=self.eyes.target_y
-        )
-    
-    def save_state_ctx(self):
-        """
-        Saves the current state context (state, entry time, eye position) to history.
-        
-        This is typically used before interrupting the current state with a temporary 
-        priority state (like a sensor trigger or interface overlay).
-        """
-        state_ctx = self.get_current_state_ctx()
-        self.state_history.append(state_ctx)
-    
-    def restore_state_ctx(self):
-        """
-        Restores the most recently saved state context from history.
-        
-        This returns the robot to the previous state after an interruption.
-        """
-        if self.state_history:
-            state_ctx = self.state_history.pop()
-            self.set_state(state_ctx.state)
-            self.state_entry_time = state_ctx.state_entry_time
-            self.eyes.target_x = state_ctx.x
-            self.eyes.target_y = state_ctx.y
-            logger.info(f"Context restored to: {state_ctx}")
-
-    def set_state(self, new_state, params=None):
-        """
-        Transitions to a new state.
-        
-        Args:
-            new_state (str): The name of the target state (must verify against config.STATES).
-            params (dict, optional): Parameters to pass to the state handler. Defaults to None.
-        """
-        args = []
-        if isinstance(new_state, tuple):
-             new_state, *args = new_state
-        
-        # Update params regardless of state change (sometimes we re-set same state with new params)
-        self.current_state_params = params
-
-        current_state = self.state_machine.get_state()
-        if current_state != new_state:
-            self.state_machine.set_state(new_state)
-            self.state_entry_time = pygame.time.get_ticks()
-            logger.info(f"State transition: {current_state} -> {new_state}, state_entry_time: {self.state_entry_time}")
-        
-        # Mood/State params are handled by body physics now

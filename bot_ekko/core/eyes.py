@@ -1,5 +1,5 @@
 import pygame
-from bot_ekko.config import STATES
+from bot_ekko.sys_config import STATES
 from bot_ekko.core.logger import get_logger
 
 logger = get_logger("Eyes")

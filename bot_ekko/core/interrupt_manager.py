@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional, List
 from bot_ekko.core.logger import get_logger
 from bot_ekko.core.command_center import CommandCenter, CommandNames
-from bot_ekko.core.state_center import StateHandler
+from bot_ekko.core.state_machine import StateHandler
 import heapq
 
 logger = get_logger("InterruptManager")

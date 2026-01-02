@@ -1,4 +1,4 @@
-from bot_ekko.config import CYAN, MAIN_FONT
+from bot_ekko.sys_config import CYAN, MAIN_FONT
 
 class EffectsRenderer:
     def render_zzz(self, surface, particles):

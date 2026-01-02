@@ -3,18 +3,18 @@ import sys
 import signal
 import queue
 import random
-from bot_ekko.core.state_center import StateHandler
+from bot_ekko.core.state_machine import StateHandler
 from bot_ekko.modules.media_interface import MediaModule
 from bot_ekko.modules.sensor_fusion.sensor_data_reader import ReadSensorSerialData
 from bot_ekko.modules.comms.comms_bluetooth import BluetoothManager
-from bot_ekko.core.sensor_state_triggers import SensorStateTrigger
+
 from bot_ekko.core.state_machine import StateMachine
 from bot_ekko.core.eyes import Eyes
-from bot_ekko.config import *
+from bot_ekko.sys_config import *
 from bot_ekko.core.logger import get_logger
 from bot_ekko.core.display_manager import init_display
 from bot_ekko.core.command_center import CommandCenter
-from bot_ekko.core.state_center import StateRenderer
+from bot_ekko.core.state_renderer import StateRenderer
 from bot_ekko.core.command_center import Command
 from bot_ekko.core.event_manager import EventManager
 from bot_ekko.modules.sensor_fusion.sensor_triggers import SensorDataTriggers
@@ -94,7 +94,7 @@ def main():
                     # Pump events internally to keep window responsive (even if we ignore them)
                     pygame.event.pump()
                     logical_surface.fill(BLACK)
-                    state_renderer.render(logical_surface, now, *SLEEP_AT, *WAKE_AT)
+                    state_renderer.render(logical_surface, now)
                     
                     # Transform and Display
                     rotated = pygame.transform.rotate(logical_surface, -90)

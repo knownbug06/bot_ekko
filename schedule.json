@@ -1,0 +1,31 @@
+[
+  {
+    "name": "Sleep Schedule",
+    "type": "daily",
+    "start_time": "22:00",
+    "end_time": "07:00",
+    "state": "SLEEPING",
+    "priority": 1,
+    "interruptible_states": [
+      "ACTIVE",
+      "SQUINTING",
+      "THINKING",
+      "SLEEPING",
+      "WAKING",
+      "SCARED",
+      "ANGRY",
+      "HAPPY"
+    ]
+  },
+  {
+    "name": "Birthday Party",
+    "type": "date",
+    "start_datetime": "2026-01-02 16:20:00",
+    "end_datetime": "2026-01-02 16:57:00",
+    "state": "HAPPY",
+    "priority": 10,
+    "params": {
+      "intensity": "high"
+    }
+  }
+]

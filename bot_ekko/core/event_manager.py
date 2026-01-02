@@ -1,9 +1,9 @@
 from bot_ekko.core.command_center import CommandCenter
-from bot_ekko.core.state_center import StateRenderer
-from bot_ekko.core.state_center import StateHandler
+from bot_ekko.core.state_renderer import StateRenderer
+from bot_ekko.core.state_machine import StateHandler
 from bot_ekko.core.interrupt_manager import InterruptManager
 from bot_ekko.core.logger import get_logger
-from bot_ekko.config import SENSOR_TRIGGER_ENTRY_TIME, SENSOR_TRIGGER_EXIT_TIME
+from bot_ekko.sys_config import SENSOR_TRIGGER_ENTRY_TIME, SENSOR_TRIGGER_EXIT_TIME
 from bot_ekko.modules.sensor_fusion.sensor_data_reader import SensorData
 from bot_ekko.modules.sensor_fusion.sensor_triggers import SensorDataTriggers
 from bot_ekko.core.command_center import CommandNames
