@@ -29,7 +29,7 @@ class CommandCenter:
         self.command_queue = command_queue
         self.state_handler = state_handler
     
-    def issue_command(self, command_name: CommandNames, params: Optional[dict] = None):
+    def issue_command(self, command_name: CommandNames, *_, params: Optional[dict] = None):
         command_ctx = CommandCtx(name=command_name, params=params)
         command = Command(command_ctx, self.state_handler)
         logger.info(f"Issuing command: {command.command_ctx.name}, params: {command.command_ctx.params}") 

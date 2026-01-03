@@ -35,7 +35,7 @@ class InterruptManager:
         # Track if we are currently handling an interrupt to manage context
         self.is_interrupted = False
 
-    def set_interrupt(self, name: str, priority: int, target_state: str, params: dict = None):
+    def set_interrupt(self, name: str, priority: int, target_state: str, *_, params: dict = None):
         """
         Activates or updates an interrupt.
         """
@@ -97,7 +97,7 @@ class InterruptManager:
                  # The StateHandler stores this entire dict as current_state_params.
                  cmd_params.update(highest_priority_item.params)
                  
-             self.command_center.issue_command(CommandNames.CHANGE_STATE, cmd_params)
+             self.command_center.issue_command(CommandNames.CHANGE_STATE, params=cmd_params)
 
     def _restore_original_state(self):
         """

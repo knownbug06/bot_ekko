@@ -40,6 +40,9 @@ class MediaModule(threading.Thread):
         # Text specific
         self.current_text = ""
         self.text_surface = None
+        
+        # Cache
+        self.gif_cache = {}
 
     def _start_media(self, duration=None, save_context=True, interrupt_name=None):
         """Helper to start media playback and handling state context."""
@@ -56,21 +59,29 @@ class MediaModule(threading.Thread):
 
     def play_gif(self, path, duration=None, save_context=True, interrupt_name=None):
         try:
-            pil_image = Image.open(path)
             frames = []
             delays = []
             
-            # Extract frames and duration
-            for frame in ImageSequence.Iterator(pil_image):
-                # Convert to RGBA and then to pygame surface
-                frame_rgba = frame.convert("RGBA")
-                mode = frame_rgba.mode
-                size = frame_rgba.size
-                data = frame_rgba.tobytes()
+            # Check cache
+            if path in self.gif_cache:
+                frames, delays = self.gif_cache[path]
+            else:
+                pil_image = Image.open(path)
                 
-                py_image = pygame.image.fromstring(data, size, mode)
-                frames.append(py_image)
-                delays.append(frame.info.get('duration', 100) / 1000.0) # Convert ms to seconds
+                # Extract frames and duration
+                for frame in ImageSequence.Iterator(pil_image):
+                    # Convert to RGBA and then to pygame surface
+                    frame_rgba = frame.convert("RGBA")
+                    mode = frame_rgba.mode
+                    size = frame_rgba.size
+                    data = frame_rgba.tobytes()
+                    
+                    py_image = pygame.image.fromstring(data, size, mode)
+                    frames.append(py_image)
+                    delays.append(frame.info.get('duration', 100) / 1000.0) # Convert ms to seconds
+                
+                if frames:
+                    self.gif_cache[path] = (frames, delays)
 
             if not frames:
                 logger.error(f"No frames found in GIF: {path}")

@@ -3,6 +3,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+
+system_health.jsonl
+
 # C extensions
 *.so
 

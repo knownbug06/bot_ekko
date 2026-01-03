@@ -35,13 +35,18 @@ class StateRenderer:
         # Proxies to StateHandler attributes needed for logic/rendering
         self.looks = Looks(self.eyes, state_handler.state_machine)
         self.state_machine = state_handler.state_machine
+        
+        # Cache for Rainbow state
+        self.rainbow_surf = None
+        self.rainbow_layer = None
+        self.eyes_mask_layer = None
 
 
     def trigger_wake(self):
         """Force wake up sequence."""
         if self.state_handler.get_state() == "SLEEPING":
             logger.info("Triggering WAKING state from SLEEPING")
-            self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "WAKING"})
+            self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": "WAKING"})
 
     def render(self, surface, now):
         """
@@ -56,7 +61,7 @@ class StateRenderer:
         handler_name = f"handle_{current_state}"
         handler = getattr(self, handler_name, None)
         if handler:
-            handler(surface, now, self.state_handler.current_state_params)
+            handler(surface, now, params=self.state_handler.current_state_params)
         else:
             logger.warning(f"Warning: No handler for state {current_state}")
 
@@ -76,16 +81,16 @@ class StateRenderer:
             # Prepare params with source tracking
             cmd_params = params.copy() if params else {}
             cmd_params["_source"] = "scheduler"
+            cmd_params["target_state"] = target_state
             
             # Scheduler says we should be in target_state
             if current_state != target_state:
                 logger.info(f"Triggering {target_state} state from schedule with params: {params}")
-                self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": target_state, "params": cmd_params})
+                self.command_center.issue_command(CommandNames.CHANGE_STATE, params=cmd_params)
         else:
             # No active schedule
             # Check if we are currently in a state triggered by the scheduler
-            current_wrapper = self.state_handler.current_state_params or {}
-            current_params = current_wrapper.get("params", {}) if isinstance(current_wrapper, dict) else {}
+            current_params = self.state_handler.current_state_params or {}
             
             # Helper to handle case where params might be flattened or nested (defensive)
             source = current_params.get("_source") if isinstance(current_params, dict) else None
@@ -93,10 +98,10 @@ class StateRenderer:
             if source == "scheduler":
                 if current_state == "SLEEPING":
                      logger.info("Triggering WAKING state (Schedule ended)")
-                     self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "WAKING"})
+                     self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": "WAKING"})
                 else:
                      logger.info(f"Reverting to ACTIVE from {current_state} (Schedule ended)")
-                     self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "ACTIVE"})
+                     self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": "ACTIVE"})
 
     def random_blink(self, surface, now):
         if self.eyes.blink_phase == "IDLE" and (now - self.last_blink > random.randint(3000, 9000)):
@@ -115,7 +120,7 @@ class StateRenderer:
         if now - self.last_mood_change > random.randint(5000, 12000):
             if random.random() > 0.6:
                 logger.info("Triggering SQUINTING state from random mood")
-                self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "SQUINTING"})
+                self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": "SQUINTING"})
                 self.last_mood_change = now
 
         # 3. Random Blink
@@ -132,7 +137,7 @@ class StateRenderer:
             
         if now - self.last_mood_change > random.randint(2000, 5000):
             logger.info("Triggering ACTIVE state from random mood")
-            self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "ACTIVE"})
+            self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": "ACTIVE"})
             self.last_mood_change = now
             
         # --- RENDERING ---
@@ -166,33 +171,11 @@ class StateRenderer:
         self.random_blink(surface, now)
              
         # --- RENDERING ---
-        # Slanted Trapezoids
-        lx, ly = int(self.eyes.curr_lx), int(self.eyes.curr_ly)
-        w, h = 160, int(self.eyes.curr_lh)
-        slant = 35
-        r = 10 # Corner radius
-        
-        l_poly = [
-            (lx - 80 + r, ly - h//2 + r),          # Top Left
-            (lx + 80 - r, ly - h//2 + slant + r),  # Top Right (Lower)
-            (lx + 80 - r, ly + h//2 - r),          # Bottom Right
-            (lx - 80 + r, ly + h//2 - r)           # Bottom Left
-        ]
-        
-        rx, ry = int(self.eyes.curr_rx), int(self.eyes.curr_ry)
-        r_poly = [
-            (rx - 80 + r, ry - h//2 + slant + r),  # Top Left (Lower)
-            (rx + 80 - r, ry - h//2 + r),          # Top Right
-            (rx + 80 - r, ry + h//2 - r),          # Bottom Right
-            (rx - 80 + r, ry + h//2 - r)           # Bottom Left
-        ]
-        
-        self._draw_rounded_poly(surface, RED, l_poly, r)
-        self._draw_rounded_poly(surface, RED, r_poly, r)
+        # ANGRY: Inner corners are LOWER (Slant Down-Inwards)
+        self._draw_slanted_eyes(surface, color=RED, slant_inwards=True)
 
     def handle_SCARED(self, surface, now, params=None):
         # --- LOGIC ---
-        # if now - self.eyes.last_gaze > random.randint(500, 1500):
         self.eyes.target_x = random.randint(-40, 40)
         self.eyes.target_y = random.randint(-20, 20)
         self.eyes.last_gaze = now
@@ -200,29 +183,8 @@ class StateRenderer:
         self.random_blink(surface, now)
              
         # --- RENDERING ---
-        # Reverse Slanted Trapezoids (SCARED: Inner corners UP)
-        lx, ly = int(self.eyes.curr_lx), int(self.eyes.curr_ly)
-        h = int(self.eyes.curr_lh)
-        slant = 35
-        r = 10 # Corner radius
-        
-        l_poly = [
-            (lx - 80 + r, ly - h//2 + slant + r),  # Top Left (Lower/Bigger Y)
-            (lx + 80 - r, ly - h//2 + r),          # Top Right (Higher/Smaller Y)
-            (lx + 80 - r, ly + h//2 - r),          # Bottom Right
-            (lx - 80 + r, ly + h//2 - r)           # Bottom Left
-        ]
-        
-        rx, ry = int(self.eyes.curr_rx), int(self.eyes.curr_ry)
-        r_poly = [
-            (rx - 80 + r, ry - h//2 + r),          # Top Left
-            (rx + 80 - r, ry - h//2 + slant + r),  # Top Right
-            (rx + 80 - r, ry + h//2 - r),          # Bottom Right
-            (rx - 80 + r, ry + h//2 - r)           # Bottom Left
-        ]
-        
-        self._draw_rounded_poly(surface, WHITE, l_poly, r)
-        self._draw_rounded_poly(surface, WHITE, r_poly, r)
+        # SCARED: Inner corners are HIGHER (Slant Up-Inwards)
+        self._draw_slanted_eyes(surface, color=WHITE, slant_inwards=False)
 
     def handle_HAPPY(self, surface, now, params=None):
         # --- LOGIC ---
@@ -238,27 +200,39 @@ class StateRenderer:
         self.looks.look_center()
 
         # --- RENDERING ---
-        # 1. Get Rainbow Surface (lazy init)
-        if not hasattr(self, 'rainbow_surf'):
-            self.rainbow_surf = self._create_rainbow_gradient(surface.get_width(), surface.get_height())
+        w, h = surface.get_size()
+        
+        # 1. Lazy Init / Resize Check
+        if (self.rainbow_surf is None or 
+            self.rainbow_layer is None or 
+            self.rainbow_layer.get_size() != (w, h)):
+            
+            logger.debug("Initializing Rainbow Surfaces")
+            self.rainbow_surf = self._create_rainbow_gradient(w, h)
+            self.rainbow_layer = pygame.Surface((w, h), pygame.SRCALPHA)
+            self.eyes_mask_layer = pygame.Surface((w, h), pygame.SRCALPHA)
             
         # 2. Calculate offset
-        offset_x = int((now / 5) % surface.get_width()) # Speed factor
+        offset_x = int((now / 5) % w)
         
-        # 3. Create the full rainbow output
-        rainbow_layer = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        # Draw two copies to handle wrapping
-        rainbow_layer.blit(self.rainbow_surf, (-offset_x, 0))
-        rainbow_layer.blit(self.rainbow_surf, (surface.get_width() - offset_x, 0))
+        # 3. Draw Rainbow Pattern (Tile it)
+        # We reuse self.rainbow_layer to avoid creation cost, but we need to clear/blit
+        # Actually, blitting a chaotic full fill doesn't need clear.
+        self.rainbow_layer.blit(self.rainbow_surf, (-offset_x, 0))
+        self.rainbow_layer.blit(self.rainbow_surf, (w - offset_x, 0))
 
-        # 4. Create mask (Eyes in White)
-        eyes_layer = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        self._draw_generic(eyes_layer, (255, 255, 255))
+        # 4. Draw Eyes Mask
+        self.eyes_mask_layer.fill((0, 0, 0, 0)) # Clear transparent
+        self._draw_generic(self.eyes_mask_layer, (255, 255, 255))
         
         # 5. Mask rainbow with eyes (Multiply)
-        eyes_layer.blit(rainbow_layer, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        # We want to show Rainbow WHERE Eyes are White.
+        # Blit Rainbow onto Eyes with MULTIPLY? No, that keeps intersection.
+        # Eyes are White (255), Background Transp (0).
+        # White * Rainbow = Rainbow. Transp * Rainbow = Transp.
+        self.eyes_mask_layer.blit(self.rainbow_layer, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         
-        surface.blit(eyes_layer, (0, 0))
+        surface.blit(self.eyes_mask_layer, (0, 0))
 
     def handle_WINK(self, surface, now, params=None):
         # --- LOGIC ---
@@ -269,7 +243,7 @@ class StateRenderer:
         # 1400-1600: Opening Right
         # 1600-4000: Open (Idle)
         
-        cycle_time = (now - self.state_entry_time) % 4000
+        cycle_time = (now - self.state_handler.state_entry_time) % 4000
         
         # Default Targets (Open)
         target_lh = 160
@@ -368,7 +342,7 @@ class StateRenderer:
             self.eyes.curr_lh, self.eyes.curr_rh = 140, 60 
         else: # Stage 2: Fully Awake
             logger.info("Triggering ACTIVE state from WAKING")
-            self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": "ACTIVE"})
+            self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": "ACTIVE"})
             self.last_mood_change = now
             
         # --- RENDERING ---
@@ -395,28 +369,7 @@ class StateRenderer:
         if self.media_player.is_playing:
              self.media_player.update(surface)
 
-    def _draw_happy_eyes(self, surface, color=CYAN):
-        lx, ly = int(self.eyes.curr_lx), int(self.eyes.curr_ly)
-        rx, ry = int(self.eyes.curr_rx), int(self.eyes.curr_ry)
-        w = 160
-        h_l = int(self.eyes.curr_lh)
-        h_r = int(self.eyes.curr_rh)
-        
-        # Left Eye
-        pygame.draw.rect(surface, color, 
-            (lx - w//2, ly - h_l//2, w, h_l), 
-            border_top_left_radius=w//2, 
-            border_top_right_radius=w//2,
-            border_bottom_left_radius=10,
-            border_bottom_right_radius=10)
-            
-        # Right Eye
-        pygame.draw.rect(surface, color, 
-            (rx - w//2, ry - h_r//2, w, h_r), 
-            border_top_left_radius=w//2, 
-            border_top_right_radius=w//2,
-            border_bottom_left_radius=10,
-            border_bottom_right_radius=10)
+
 
     def _draw_uwu_mouth(self, surface, color=CYAN):
         lx, ly = int(self.eyes.curr_lx), int(self.eyes.curr_ly)
@@ -460,20 +413,48 @@ class StateRenderer:
         if self.is_media_playing:
             self.media_player.update(surface)
 
+    def _draw_rect_eyes(self, surface, color, top_r=None, bot_r=None):
+        """
+        Generic helper to draw rounded rectangular eyes.
+        If top_r/bot_r are None, uses state configuration (generic).
+        If provided, overrides (e.g. for Happy eyes).
+        """
+        lx, ly = int(self.eyes.curr_lx), int(self.eyes.curr_ly)
+        rx, ry = int(self.eyes.curr_rx), int(self.eyes.curr_ry)
+        w = 160
+        h_l, h_r = int(self.eyes.curr_lh), int(self.eyes.curr_rh)
+        
+        tr_l, tr_r = top_r, top_r
+        br_l, br_r = bot_r, bot_r
+        
+        # Default to Config if not specified
+        if top_r is None or bot_r is None:
+            state_data = STATES.get(self.state_machine.get_state(), STATES["ACTIVE"])
+            _, _, radius, _, _ = state_data
+            tr_l = tr_r = br_l = br_r = radius
+        
+        # Left Eye
+        pygame.draw.rect(surface, color, 
+            (lx - w//2, ly - h_l//2, w, h_l), 
+            border_top_left_radius=tr_l, 
+            border_top_right_radius=tr_l,
+            border_bottom_left_radius=br_l,
+            border_bottom_right_radius=br_l)
+            
+        # Right Eye
+        pygame.draw.rect(surface, color, 
+            (rx - w//2, ry - h_r//2, w, h_r), 
+            border_top_left_radius=tr_r, 
+            border_top_right_radius=tr_r,
+            border_bottom_left_radius=br_r,
+            border_bottom_right_radius=br_r)
+
     def _draw_generic(self, surface, color=CYAN):
-        state_data = STATES.get(self.state_machine.get_state(), STATES["ACTIVE"])
-        _, _, radius, _, _ = state_data
-        
-        logger.debug(f"Drawing generic eyes for state: {self.state_machine.get_state()}")
-        
-        # Draw Left Eye
-        pygame.draw.rect(surface, color, 
-            (int(self.eyes.curr_lx - 80), int(self.eyes.curr_ly - self.eyes.curr_lh//2), 160, int(self.eyes.curr_lh)), 
-            border_radius=radius)
-        # Draw Right Eye
-        pygame.draw.rect(surface, color, 
-            (int(self.eyes.curr_rx - 80), int(self.eyes.curr_ry - self.eyes.curr_rh//2), 160, int(self.eyes.curr_rh)), 
-            border_radius=radius)
+        self._draw_rect_eyes(surface, color)
+
+    def _draw_happy_eyes(self, surface, color=CYAN):
+        w = 160
+        self._draw_rect_eyes(surface, color, top_r=w//2, bot_r=10)
 
     def _update_particles(self, now):
         if random.random() < 0.03:
@@ -493,3 +474,45 @@ class StateRenderer:
             pygame.draw.circle(surface, color, p1, radius)
             pygame.draw.line(surface, color, p1, p2, width=radius * 2) 
 
+    def _draw_slanted_eyes(self, surface, color, slant_inwards=True):
+        """
+        Draws slanted eyes for ANGRY (slant_inwards=True) or SCARED (slant_inwards=False).
+        """
+        lx, ly = int(self.eyes.curr_lx), int(self.eyes.curr_ly)
+        rx, ry = int(self.eyes.curr_rx), int(self.eyes.curr_ry)
+        h_l, h_r = int(self.eyes.curr_lh), int(self.eyes.curr_rh)
+        
+        slant = 35
+        r = 10 # Corner radius
+        w = 160
+        half_w = w // 2
+        
+        # Calculate offsets based on slant direction
+        # If slant_inwards (ANGRY): Outer corners High, Inner corners Low (+slant)
+        # If !slant_inwards (SCARED): Outer corners Low (+slant), Inner corners High
+        
+        # Left Eye (Inner is Right side)
+        # Right Eye (Inner is Left side)
+        
+        l_tl_off = 0 if slant_inwards else slant
+        l_tr_off = slant if slant_inwards else 0
+        
+        r_tl_off = slant if slant_inwards else 0
+        r_tr_off = 0 if slant_inwards else slant
+        
+        l_poly = [
+            (lx - half_w + r, ly - h_l//2 + l_tl_off + r),      # Top Left
+            (lx + half_w - r, ly - h_l//2 + l_tr_off + r),      # Top Right
+            (lx + half_w - r, ly + h_l//2 - r),                 # Bottom Right
+            (lx - half_w + r, ly + h_l//2 - r)                  # Bottom Left
+        ]
+        
+        r_poly = [
+            (rx - half_w + r, ry - h_r//2 + r_tl_off + r),      # Top Left
+            (rx + half_w - r, ry - h_r//2 + r_tr_off + r),      # Top Right
+            (rx + half_w - r, ry + h_r//2 - r),                 # Bottom Right
+            (rx - half_w + r, ry + h_r//2 - r)                  # Bottom Left
+        ]
+        
+        self._draw_rounded_poly(surface, color, l_poly, r)
+        self._draw_rounded_poly(surface, color, r_poly, r)

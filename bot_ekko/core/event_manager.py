@@ -58,12 +58,35 @@ class EventManager:
         if bt_data:
             if bt_data.is_connected:
                 clean_bt_data = bt_data.text.strip().upper()
-                cmd, param, *_ = clean_bt_data.split(";") + [None, None] 
+                parts = clean_bt_data.split(";")
+                cmd = parts[0]
+                param = parts[1] if len(parts) > 1 else None
                 
-                if cmd == "STATE":
-                    self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": param})
-                else:
-                    self.interrupt_manager.set_interrupt("canvas_media", 80, "CANVAS", {"param": {"text": param}, "interrupt_name": "canvas_media"})
+                if cmd == "STATE" and param:
+                    self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": param})
+                elif cmd:
+                    # Default: Treat as text to show on canvas
+                    # If param is None, use cmd itself (e.g. just text sent without semicolon) if that was the intent.
+                    # But original code implied param comes after semicolon. 
+                    # If user just sends "HELLO", split gives ["HELLO"]. param is None.
+                    # Original logic: `cmd, param, *_ = ... + [None, None]`. 
+                    # If "HELLO", cmd="HELLO", param=None.
+                    # Else branch: `param` would be None. `text`=None. 
+                    # Then `state_renderer.handle_CANVAS` checks `if text: ... else: play_gif`.
+                    # So sending just "HELLO" would result in GIF playback with cmd="HELLO" (unused param)? 
+                    # Wait, line 66 passes `param` as text. If param is None, text is None.
+                    # So "HELLO" -> Text None -> Play GIF.
+                    # "SHOW_TEXT;HELLO" -> cmd="SHOW_TEXT", param="HELLO" -> Play GIF.
+                    # "CANVAS;HELLO" (if cmd not STATE) -> param="HELLO" -> Text "HELLO" -> Show Text?
+                    # The original code's "Else" block handles EVERYTHING not STATE.
+                    
+                    # Correction: If I want "SHOW_TEXT;HELLO" to work, I should handle it.
+                    # But for strict refactoring of EXISTING behavior:
+                    # Original behavior: If not STATE, set interrupt "CANVAS" with param as text.
+                    # So if I send "FOO", param is None. Text is None. -> GIF.
+                    # If I send "FOO;BAR", param is "BAR". Text is "BAR". -> Show Text "BAR".
+                    
+                    self.interrupt_manager.set_interrupt("canvas_media", 80, "CANVAS", params={"param": {"text": param}, "interrupt_name": "canvas_media"})
                     
         
         

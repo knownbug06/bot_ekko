@@ -7,25 +7,33 @@
     "state": "SLEEPING",
     "priority": 1,
     "interruptible_states": [
-      "ACTIVE",
-      "SQUINTING",
-      "THINKING",
-      "SLEEPING",
-      "WAKING",
-      "SCARED",
-      "ANGRY",
-      "HAPPY"
+      "ACTIVE"
     ]
   },
   {
-    "name": "Birthday Party",
+    "name": "happy_birthday_text",
     "type": "date",
-    "start_datetime": "2026-01-02 16:20:00",
-    "end_datetime": "2026-01-02 16:57:00",
-    "state": "HAPPY",
+    "start_datetime": "2026-04-06 10:00:00",
+    "end_datetime": "2026-04-06 10:05:00",
+    "state": "CANVAS",
     "priority": 10,
     "params": {
-      "intensity": "high"
+      "show": "text",
+      "value": "Happy Birthday!",
+      "duration": 300
+    }
+  },
+  {
+    "name": "happy_birthday_gif",
+    "type": "date",
+    "start_datetime": "2026-04-06 10:05:00",
+    "end_datetime": "2026-04-06 10:10:00",
+    "state": "CANVAS",
+    "priority": 10,
+    "params": {
+      "show": "gif",
+      "value": "birthday.gif",
+      "duration": 300
     }
   }
 ]

@@ -46,3 +46,8 @@ SCHEDULE_FILE_PATH = "/home/ekko/bot_ekko/schedule.json"
 
 # LOGGING CONFIGURATION
 LOG_LEVEL = "INFO"
+
+# SYSTEM MONITORING
+SYSTEM_MONITORING_ENABLED = True
+SYSTEM_LOG_FILE = "/home/ekko/bot_ekko/system_health.jsonl"
+SYSTEM_SAMPLE_RATE = 10.0 # Seconds

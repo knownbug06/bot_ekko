@@ -2,23 +2,28 @@ import pygame
 import sys
 import signal
 import queue
+import signal
+import queue
 import random
-from bot_ekko.core.state_machine import StateHandler
+
+from bot_ekko.sys_config import PHYSICAL_W, PHYSICAL_H, LOGICAL_W, LOGICAL_H, BLACK, SYSTEM_MONITORING_ENABLED
+from bot_ekko.core.logger import get_logger
+
+# Core Components
+from bot_ekko.core.state_machine import StateHandler, StateMachine
+from bot_ekko.core.eyes import Eyes
+from bot_ekko.core.display_manager import init_display
+from bot_ekko.core.command_center import CommandCenter, Command
+from bot_ekko.core.state_renderer import StateRenderer
+from bot_ekko.core.event_manager import EventManager
+from bot_ekko.core.interrupt_manager import InterruptManager
+
+# Modules
 from bot_ekko.modules.media_interface import MediaModule
 from bot_ekko.modules.sensor_fusion.sensor_data_reader import ReadSensorSerialData
-from bot_ekko.modules.comms.comms_bluetooth import BluetoothManager
-
-from bot_ekko.core.state_machine import StateMachine
-from bot_ekko.core.eyes import Eyes
-from bot_ekko.sys_config import *
-from bot_ekko.core.logger import get_logger
-from bot_ekko.core.display_manager import init_display
-from bot_ekko.core.command_center import CommandCenter
-from bot_ekko.core.state_renderer import StateRenderer
-from bot_ekko.core.command_center import Command
-from bot_ekko.core.event_manager import EventManager
 from bot_ekko.modules.sensor_fusion.sensor_triggers import SensorDataTriggers
-from bot_ekko.core.interrupt_manager import InterruptManager
+from bot_ekko.modules.comms.comms_bluetooth import BluetoothManager
+from bot_ekko.modules.system_logs import SystemMonitor
 
 
 logger = get_logger("Main")
@@ -60,6 +65,12 @@ def main():
     # bluetooth manager
     bluetooth_manager = BluetoothManager()
     bluetooth_manager.start()
+
+    # System Monitor
+    system_monitor = None
+    if SYSTEM_MONITORING_ENABLED:
+        system_monitor = SystemMonitor()
+        system_monitor.start()
 
 
     signal.signal(signal.SIGTERM, handle_sigterm)
@@ -113,6 +124,8 @@ def main():
         logger.info("Cleaning up resources...")
         sensor_reader.stop()
         bluetooth_manager.stop()
+        if system_monitor:
+            system_monitor.stop()
         pygame.quit()
         sys.exit()
 
