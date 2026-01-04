@@ -29,6 +29,7 @@ class StateContext(BaseModel):
 
 class CommandNames(Enum):
     CHANGE_STATE = "change_state"
+    RESTORE_STATE = "restore_state"
 
 
 class CommandCtx(BaseModel):

@@ -17,10 +17,16 @@ class Command:
         if not self.state_handler:
             logger.error("All commands must come through CommandCenter, with StateHandler injected")
             return
-        # TODO: currently only supports change_state command
+        # Custom handling for save_history
+        if self.command_ctx.params and self.command_ctx.params.get("save_history"):
+            self.state_handler.save_state_ctx()
+
+        # Command Dispatch
         if self.command_ctx.name == CommandNames.CHANGE_STATE:
             target_state = self.command_ctx.params["target_state"]
             self.state_handler.set_state(target_state, self.command_ctx.params)
+        elif self.command_ctx.name == CommandNames.RESTORE_STATE:
+            self.state_handler.restore_state_ctx()
         else:
             logger.warning(f"Unknown command: {self.command_ctx.name}")
 

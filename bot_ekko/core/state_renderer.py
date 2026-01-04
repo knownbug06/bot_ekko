@@ -21,7 +21,7 @@ class StateRenderer:
         self.state_handler = state_handler
         self.command_center = command_center
         
-        self.media_player = MediaModule(self.state_handler, self.interrupt_manager)
+        self.media_player = MediaModule(self.interrupt_manager, self.command_center)
         self.media_player.start()
         
         # Rendering attributes
@@ -161,18 +161,9 @@ class StateRenderer:
              text = params['param'].get('text')
         
         if text:
-            # If not an interrupt, ensure we have a return state
-            if not interrupt_name:
-                 fallback_ctx = StateContext(state="ACTIVE", state_entry_time=now, x=0, y=0)
-                 self.state_handler.state_history.append(fallback_ctx)
             self.media_player.show_text(text, duration=5.0, save_context=False, interrupt_name=interrupt_name)
         else:
             gif_path = params.get("media_path", "/home/ekko/bot_ekko/bot_ekko/assets/anime.gif") if params else "/home/ekko/bot_ekko/bot_ekko/assets/anime.gif"
-            
-            if not interrupt_name:
-                 fallback_ctx = StateContext(state="ACTIVE", state_entry_time=now, x=0, y=0)
-                 self.state_handler.state_history.append(fallback_ctx)
-                 
             self.media_player.play_gif(gif_path, duration=5.0, save_context=False, interrupt_name=interrupt_name)
     
     def handle_ANGRY(self, surface, now, params=None):

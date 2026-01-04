@@ -73,7 +73,8 @@ class GifAPI:
         params = {
             "target_state": "CANVAS",
             "media_type": "gif",
-            "media_path": filepath
+            "media_path": filepath,
+            "save_history": True
         }
         self.command_center.issue_command(CommandNames.CHANGE_STATE, params=params)
 

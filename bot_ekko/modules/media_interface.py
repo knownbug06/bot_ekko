@@ -4,19 +4,21 @@ import pygame
 from PIL import Image, ImageSequence
 from bot_ekko.core.logger import get_logger
 from bot_ekko.sys_config import *
-# from bot_ekko.core.interrupt_manager import InterruptManager # Avoid circular import if possible, use typing only
+# from bot_ekko.core.interrupt_manager import InterruptManager # Avoid circular import via TYPE_CHECKING
 from typing import Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from bot_ekko.core.interrupt_manager import InterruptManager
+    from bot_ekko.core.command_center import CommandCenter
+
+from bot_ekko.core.models import CommandNames
 
 logger = get_logger("MediaModule")
 
 class MediaModule(threading.Thread):
-    def __init__(self, state_handler, interrupt_manager: Optional['InterruptManager'] = None):
+    def __init__(self, interrupt_manager, command_center):
         super().__init__(daemon=True)
-        self.state_handler = state_handler
         self.interrupt_manager = interrupt_manager
-        self.current_media_type = None
+        self.command_center = command_center
         self.current_media_type = None
         self.media_end_time = 0
         self.current_interrupt_name = None
@@ -46,8 +48,7 @@ class MediaModule(threading.Thread):
 
     def _start_media(self, duration=None, save_context=True, interrupt_name=None):
         """Helper to start media playback and handling state context."""
-        if save_context:
-            self.state_handler.save_state_ctx()
+        # Note: Context saving is now handled by CommandCenter before switching state if requested.
             
         self.current_interrupt_name = interrupt_name
         self.is_playing = True
@@ -128,13 +129,13 @@ class MediaModule(threading.Thread):
             with self.lock:
                 self.current_media_type = None
             
-            if self.current_interrupt_name and self.interrupt_manager:
+            if self.current_interrupt_name:
                 logger.info(f"Clearing interrupt: {self.current_interrupt_name}")
                 self.interrupt_manager.clear_interrupt(self.current_interrupt_name)
                 self.current_interrupt_name = None
             else:
-                self.state_handler.restore_state_ctx()
-            
+                logger.info("Restoring state via CommandCenter")
+                self.command_center.issue_command(CommandNames.RESTORE_STATE)
             logger.info("Media stopped.")
 
     def run(self):

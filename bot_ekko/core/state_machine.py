@@ -5,7 +5,7 @@ from collections import deque
 from datetime import datetime
 from bot_ekko.sys_config import *
 from bot_ekko.modules.effects import EffectsRenderer
-from bot_ekko.modules.media_interface import MediaModule
+
 from bot_ekko.core.movements import Looks
 from bot_ekko.core.logger import get_logger
 from bot_ekko.core.models import StateContext, CommandNames
