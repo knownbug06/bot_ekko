@@ -68,7 +68,6 @@ def main():
     TENOR_API_KEY = os.getenv("TENOR_API_KEY") 
     gif_api = TenorAPI(command_center, TENOR_API_KEY)
 
-
     sensor_data_triggers = SensorDataTriggers()
     event_manager = EventManager(sensor_data_triggers, command_center, state_renderer, state_handler, interrupt_manager, gif_api)    
     

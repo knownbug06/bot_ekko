@@ -22,8 +22,8 @@ class SensorData(BaseModel):
 class StateContext(BaseModel):
     state: str
     state_entry_time: int
-    x: int
-    y: int
+    x: float
+    y: float
     params: Optional[dict] = None
 
 

@@ -70,6 +70,10 @@ class StateRenderer:
         if now < 2000:
             return
 
+        current_state = self.state_handler.get_state()
+        if current_state == "CHAT":
+            return
+
         now_dt = datetime.now()
         current_state = self.state_handler.get_state()
         
@@ -234,6 +238,43 @@ class StateRenderer:
         self.eyes_mask_layer.blit(self.rainbow_layer, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         
         surface.blit(self.eyes_mask_layer, (0, 0))
+
+    def handle_CHAT(self, surface, now, params=None):
+        """
+        Permanent chat state.
+        
+        States:
+        - Loading: params['is_loading'] == True. Show "Thinking..." or animation.
+        - Result: params['text'] present. Show text.
+        """
+        # --- LOGIC ---
+        # No eye logic needed for chat-only screen
+        
+        # --- RENDERING ---
+        # No eye drawing
+        
+        is_loading = False
+        text = ""
+        
+        if params:
+            is_loading = params.get("is_loading", False)
+            text = params.get("text", "")
+
+        center_x = surface.get_width() // 2
+        center_y = surface.get_height() // 2 # Centered vertically since no eyes
+
+        if is_loading:
+            self.effects.render_loading_dots(surface, center_x, center_y, now)
+        elif text:
+            try:
+                from bot_ekko.sys_config import CHAT_FONT
+                font = CHAT_FONT
+            except ImportError:
+                font = MAIN_FONT
+                
+            surf = self.media_player._render_wrapped_text(text, font, CYAN, LOGICAL_W - 40)
+            rect = surf.get_rect(center=(center_x, center_y))
+            surface.blit(surf, rect)
 
     def handle_WINK(self, surface, now, params=None):
         # --- LOGIC ---

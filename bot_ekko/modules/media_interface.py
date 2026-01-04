@@ -112,15 +112,66 @@ class MediaModule(threading.Thread):
         except Exception as e:
             logger.error(f"Failed to load Image {path}: {e}")
 
-    def show_text(self, text, duration=5.0, save_context=True, interrupt_name=None):
-        # Render text once
-        surf = MAIN_FONT.render(text, True, CYAN)
+    def _render_wrapped_text(self, text, font, color, max_width):
+        """Helper to render text wrapped to a max width."""
+        words = text.split(' ')
+        lines = []
+        current_line = []
+        
+        for word in words:
+            test_line = ' '.join(current_line + [word])
+            w, h = font.size(test_line)
+            if w < max_width:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                    current_line = [word]
+                else:
+                    # Word itself is too long, just add it (or could split char by char)
+                    lines.append(word)
+                    current_line = []
+        
+        if current_line:
+            lines.append(' '.join(current_line))
+            
+        # Render lines
+        rendered_lines = [font.render(line, True, color) for line in lines]
+        
+        # specific case for empty text
+        if not rendered_lines:
+             return font.render("", True, color)
+
+        total_height = sum(line.get_height() for line in rendered_lines)
+        max_line_width = max(line.get_width() for line in rendered_lines)
+        
+        # Create surface
+        # We use transparent background
+        surface = pygame.Surface((max_line_width, total_height), pygame.SRCALPHA)
+        
+        y = 0
+        for line_surf in rendered_lines:
+            # Center confirm? Or Left align?
+            # Let's center align each line relative to the widest line for aesthetics
+            x = (max_line_width - line_surf.get_width()) // 2
+            surface.blit(line_surf, (x, y))
+            y += line_surf.get_height()
+            
+        return surface
+
+    def show_text(self, text, duration=CANVAS_DURATION, save_context=True, interrupt_name=None):
+        # Render text wrapped
+        # LOGICAL_W is 800, let's use 760 for padding
+        text = text.capitalize()
+        max_width = LOGICAL_W - 40 
+        surf = self._render_wrapped_text(text, MAIN_FONT, CYAN, max_width)
+        
         with self.lock:
             self.current_text = text
             self.text_surface = surf
             self.current_media_type = "TEXT"
         self._start_media(duration, save_context, interrupt_name)
-        logger.info(f"Showing Text: '{text}' for {duration}s")
+        logger.info(f"Showing Text for {duration}s")
 
     def stop_media(self):
         """Stops media and restores state."""

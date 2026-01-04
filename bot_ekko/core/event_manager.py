@@ -19,7 +19,7 @@ class EventManager:
         state_renderer: StateRenderer,
         state_handler: StateHandler,
         interrupt_manager: InterruptManager,
-        gif_api = None
+        gif_api = None,
     ):
         self.sensor_data_trigger = sensor_data_trigger
         self.command_center = command_center
@@ -71,28 +71,38 @@ class EventManager:
                         self.gif_api.fetch_random_gif(param)
                     else:
                         logger.warning("GIF API not initialized")
+                elif cmd == "CHAT" and param:
+                    if self.llm_router:
+                        raw_text = bt_data.text.strip()
+                        raw_parts = raw_text.split(";")
+                        raw_param = raw_parts[1] if len(raw_parts) > 1 else ""
+
+                        # 1. Switch to CHAT state immediately with LOADING status
+                        logger.info(f"Switching to CHAT state (Loading) for query: {raw_param}")
+                        self.command_center.issue_command(CommandNames.CHANGE_STATE, params={
+                            "target_state": "CHAT", 
+                            "is_loading": True,
+                            "text": "",
+                            "save_history": True
+                        })
+
+                        # 2. Define callback to handle response later
+                        def on_response(response_text):
+                            logger.info(f"Received LLM response: {response_text}")
+                            # Update CHAT state with text and remove loading
+                            # Note: We must update the state params. We can just Re-Issue CHANGE_STATE to CHAT with new params.
+                            self.command_center.issue_command(CommandNames.CHANGE_STATE, params={
+                                "target_state": "CHAT",
+                                "is_loading": False,
+                                "text": response_text
+                            })
+
+                        # 3. Call Router
+                        # self.llm_router.query(raw_param, on_response)
+                        
+                    else:
+                        logger.warning("LLM Router not initialized")
                 elif cmd:
-                    # Default: Treat as text to show on canvas
-                    # If param is None, use cmd itself (e.g. just text sent without semicolon) if that was the intent.
-                    # But original code implied param comes after semicolon. 
-                    # If user just sends "HELLO", split gives ["HELLO"]. param is None.
-                    # Original logic: `cmd, param, *_ = ... + [None, None]`. 
-                    # If "HELLO", cmd="HELLO", param=None.
-                    # Else branch: `param` would be None. `text`=None. 
-                    # Then `state_renderer.handle_CANVAS` checks `if text: ... else: play_gif`.
-                    # So sending just "HELLO" would result in GIF playback with cmd="HELLO" (unused param)? 
-                    # Wait, line 66 passes `param` as text. If param is None, text is None.
-                    # So "HELLO" -> Text None -> Play GIF.
-                    # "SHOW_TEXT;HELLO" -> cmd="SHOW_TEXT", param="HELLO" -> Play GIF.
-                    # "CANVAS;HELLO" (if cmd not STATE) -> param="HELLO" -> Text "HELLO" -> Show Text?
-                    # The original code's "Else" block handles EVERYTHING not STATE.
-                    
-                    # Correction: If I want "SHOW_TEXT;HELLO" to work, I should handle it.
-                    # But for strict refactoring of EXISTING behavior:
-                    # Original behavior: If not STATE, set interrupt "CANVAS" with param as text.
-                    # So if I send "FOO", param is None. Text is None. -> GIF.
-                    # If I send "FOO;BAR", param is "BAR". Text is "BAR". -> Show Text "BAR".
-                    
                     self.interrupt_manager.set_interrupt("canvas_media", 80, "CANVAS", params={"param": {"text": param}, "interrupt_name": "canvas_media"})
                     
         
