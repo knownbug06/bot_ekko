@@ -29,7 +29,7 @@ from bot_ekko.modules.sensor_fusion.sensor_data_reader import ReadSensorSerialDa
 from bot_ekko.modules.sensor_fusion.sensor_triggers import SensorDataTriggers
 from bot_ekko.modules.comms.comms_bluetooth import BluetoothManager
 from bot_ekko.modules.system_logs import SystemMonitor
-from bot_ekko.apis.adapters.gif_api import GifAPI
+from bot_ekko.apis.adapters.tenor_api import TenorAPI
 
 
 logger = get_logger("Main")
@@ -65,9 +65,8 @@ def main():
     
     
     # API Adapters
-    # Placeholder API Key - User should replace this or use env var
-    GIPHY_API_KEY = os.getenv("GIPHY_API_KEY") 
-    gif_api = GifAPI(command_center, GIPHY_API_KEY)
+    TENOR_API_KEY = os.getenv("TENOR_API_KEY") 
+    gif_api = TenorAPI(command_center, TENOR_API_KEY)
 
 
     sensor_data_triggers = SensorDataTriggers()

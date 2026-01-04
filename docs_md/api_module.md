@@ -31,12 +31,12 @@ api.get("https://api.example.com/data", callback=my_callback)
 
 Adapters are higher-level classes that use `ExternalAPIs` to perform specific tasks. They abstract the API details (endpoints, keys, parsing) away from the main bot logic.
 
-#### Giphy Adapter (`GifAPI`)
-**Path:** `bot_ekko/apis/adapters/gif_api.py`
+#### Tenor Adapter (`TenorAPI`)
+**Path:** `bot_ekko/apis/adapters/tenor_api.py`
 
 - **Purpose**: Fetches random GIFs based on a search term and displays them on the robot's screen.
 - **Integration**:
-    1.  Fetches GIF metadata from Giphy API.
+    1.  Fetches GIF metadata from Tenor API (v2).
     2.  Downloads the GIF file to a temporary directory.
     3.  Issues a `CHANGE_STATE` command to the `CommandCenter` to switch the robot to `CANVAS` mode and play the GIF.
     4.  Requests `save_history=True` so the robot returns to its previous state (e.g., `ACTIVE`) after the GIF finishes.
@@ -44,14 +44,14 @@ Adapters are higher-level classes that use `ExternalAPIs` to perform specific ta
 **Instantiation:**
 ```python
 # main.py
-gif_api = GifAPI(command_center, API_KEY)
+tenor_api = TenorAPI(command_center, API_KEY)
 ```
 
 **Triggering:**
 Can be triggered via Bluetooth command or code:
 ```python
 # Bluetooth: "GIF;happy"
-gif_api.fetch_random_gif("happy")
+tenor_api.fetch_random_gif("happy")
 ```
 
 ## Adding New APIs
