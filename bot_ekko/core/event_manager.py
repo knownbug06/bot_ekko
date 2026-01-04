@@ -18,13 +18,15 @@ class EventManager:
         command_center: CommandCenter,
         state_renderer: StateRenderer,
         state_handler: StateHandler,
-        interrupt_manager: InterruptManager
+        interrupt_manager: InterruptManager,
+        gif_api = None
     ):
         self.sensor_data_trigger = sensor_data_trigger
         self.command_center = command_center
         self.state_renderer = state_renderer
         self.state_handler = state_handler
         self.interrupt_manager = interrupt_manager
+        self.gif_api = gif_api
 
         self.sensor_interrupt = "sensor_interrupt"
 
@@ -64,6 +66,11 @@ class EventManager:
                 
                 if cmd == "STATE" and param:
                     self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": param})
+                elif cmd == "GIF" and param:
+                    if self.gif_api:
+                        self.gif_api.fetch_random_gif(param)
+                    else:
+                        logger.warning("GIF API not initialized")
                 elif cmd:
                     # Default: Treat as text to show on canvas
                     # If param is None, use cmd itself (e.g. just text sent without semicolon) if that was the intent.

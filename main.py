@@ -24,6 +24,7 @@ from bot_ekko.modules.sensor_fusion.sensor_data_reader import ReadSensorSerialDa
 from bot_ekko.modules.sensor_fusion.sensor_triggers import SensorDataTriggers
 from bot_ekko.modules.comms.comms_bluetooth import BluetoothManager
 from bot_ekko.modules.system_logs import SystemMonitor
+from bot_ekko.apis.adapters.gif_api import GifAPI
 
 
 logger = get_logger("Main")
@@ -58,8 +59,14 @@ def main():
     sensor_reader.start()
     
     
+    # API Adapters
+    # Placeholder API Key - User should replace this or use env var
+    GIPHY_API_KEY = "kfI1OMGs9EpGfMqYix0qbzfLwIIrVGjn" 
+    gif_api = GifAPI(command_center, GIPHY_API_KEY)
+
+
     sensor_data_triggers = SensorDataTriggers()
-    event_manager = EventManager(sensor_data_triggers, command_center, state_renderer, state_handler, interrupt_manager)    
+    event_manager = EventManager(sensor_data_triggers, command_center, state_renderer, state_handler, interrupt_manager, gif_api)    
     
 
     # bluetooth manager
@@ -126,6 +133,8 @@ def main():
         bluetooth_manager.stop()
         if system_monitor:
             system_monitor.stop()
+        if gif_api:
+            gif_api.stop()
         pygame.quit()
         sys.exit()
 
