@@ -43,7 +43,7 @@ class EventManager:
 
         if is_proximity:
             if self.wait_sensor_trigger(SENSOR_TRIGGER_ENTRY_TIME):
-                self.interrupt_manager.set_interrupt(self.sensor_interrupt, 50, "UWU")
+                self.interrupt_manager.set_interrupt(self.sensor_interrupt, 50, "WINK")
                 logger.debug("Set proximity interrupt")
             
         elif is_distance:

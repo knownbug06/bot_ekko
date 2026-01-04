@@ -51,7 +51,8 @@ class StateHandler:
             state=self.state_machine.get_state(),
             state_entry_time=self.state_entry_time,
             x=self.eyes.target_x,
-            y=self.eyes.target_y
+            y=self.eyes.target_y,
+            params=self.current_state_params
         )
     
     def save_state_ctx(self):
@@ -72,7 +73,7 @@ class StateHandler:
         """
         if self.state_history:
             state_ctx = self.state_history.pop()
-            self.set_state(state_ctx.state)
+            self.set_state(state_ctx.state, params=state_ctx.params)
             self.state_entry_time = state_ctx.state_entry_time
             self.eyes.target_x = state_ctx.x
             self.eyes.target_y = state_ctx.y

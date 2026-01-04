@@ -17,6 +17,7 @@ class Command:
         if not self.state_handler:
             logger.error("All commands must come through CommandCenter, with StateHandler injected")
             return
+        # TODO: currently only supports change_state command
         if self.command_ctx.name == CommandNames.CHANGE_STATE:
             target_state = self.command_ctx.params["target_state"]
             self.state_handler.set_state(target_state, self.command_ctx.params)

@@ -24,6 +24,7 @@ class StateContext(BaseModel):
     state_entry_time: int
     x: int
     y: int
+    params: Optional[dict] = None
 
 
 class CommandNames(Enum):
