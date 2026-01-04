@@ -4,6 +4,11 @@ import signal
 import queue
 import signal
 import queue
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import random
 
 from bot_ekko.sys_config import PHYSICAL_W, PHYSICAL_H, LOGICAL_W, LOGICAL_H, BLACK, SYSTEM_MONITORING_ENABLED
@@ -61,7 +66,7 @@ def main():
     
     # API Adapters
     # Placeholder API Key - User should replace this or use env var
-    GIPHY_API_KEY = "kfI1OMGs9EpGfMqYix0qbzfLwIIrVGjn" 
+    GIPHY_API_KEY = os.getenv("GIPHY_API_KEY") 
     gif_api = GifAPI(command_center, GIPHY_API_KEY)
 
 
