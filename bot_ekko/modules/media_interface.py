@@ -159,12 +159,14 @@ class MediaModule(threading.Thread):
             
         return surface
 
-    def show_text(self, text, duration=CANVAS_DURATION, save_context=True, interrupt_name=None):
+    def show_text(self, text, duration=CANVAS_DURATION, save_context=True, interrupt_name=None, font=None):
         # Render text wrapped
         # LOGICAL_W is 800, let's use 760 for padding
         text = text.capitalize()
         max_width = LOGICAL_W - 40 
-        surf = self._render_wrapped_text(text, MAIN_FONT, CYAN, max_width)
+        
+        use_font = font if font else MAIN_FONT
+        surf = self._render_wrapped_text(text, use_font, CYAN, max_width)
         
         with self.lock:
             self.current_text = text

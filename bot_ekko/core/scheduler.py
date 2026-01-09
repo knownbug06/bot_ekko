@@ -33,14 +33,16 @@ class Scheduler:
             logger.error(f"Error parsing schedule file: {e}")
             self.events = []
 
-    def get_target_state(self, now_dt: datetime, current_state: str) -> Optional[tuple[str, Optional[Dict]]]:
+    def get_target_state(self, now_dt: datetime, current_state: str) -> Optional[tuple[str, Optional[Dict], str, int]]:
         """
         Checks if any scheduled event is active AND if the current state allows interruption.
-        Returns the target state name if conditions are met, else None.
+        Returns (target_state, params, event_name, priority) if conditions are met, else None.
         """
         for event in self.events:
             target_state = event.get("state")
             params = event.get("params")
+            name = event.get("name")
+            priority = event.get("priority", 10)
             
             # 1. Check time window
             if not self._is_event_active(event, now_dt):
@@ -71,6 +73,8 @@ class Scheduler:
             return self._check_daily_interval(event, now_dt)
         elif event_type == "date":
             return self._check_date_interval(event, now_dt)
+        elif event_type == "hourly":
+            return self._check_hourly_interval(event, now_dt)
         return False
 
     def _check_date_interval(self, event: Dict, now_dt: datetime) -> bool:
@@ -113,3 +117,20 @@ class Scheduler:
         except ValueError:
             logger.error(f"Invalid time format in event {event.get('name')}")
             return False
+
+    def _check_hourly_interval(self, event: Dict, now_dt: datetime) -> bool:
+        """
+        Active if current minute/second is within the first 'duration' seconds of the hour.
+        Default duration 10s.
+        """
+        params = event.get("params", {})
+        duration = params.get("duration", 10) # seconds
+        
+        # Check if we are in the first 'duration' seconds of the hour
+        # e.g. 10:00:00 to 10:00:10
+        
+        seconds_since_hour = now_dt.minute * 60 + now_dt.second
+        return seconds_since_hour < duration
+        # TEMP VERIFICATION logic: every minute
+        # return now_dt.second < duration
+

@@ -10,6 +10,7 @@ WHITE = (255, 255, 255)
 pygame.font.init()
 MAIN_FONT = pygame.font.SysFont("Arial", 40, bold=True)
 CHAT_FONT = pygame.font.SysFont("Arial", 30, bold=False)
+CLOCK_FONT = pygame.font.SysFont("Courier New", 80, bold=True)
 
 SENSOR_TRIGGER_ENTRY_TIME = 500
 SENSOR_TRIGGER_EXIT_TIME = 3000
@@ -31,6 +32,7 @@ STATES = {
     "UWU":        [160, 0.1,  20, 0.4, 0.2],  # Uwu face
     "CANVAS":  [0, 0, 0, 0, 0],    # Show Text state
     "CHAT": [0, 0, 0, 0, 0],    # Show Text state
+    "CLOCK": [0, 0, 0, 0, 0],   # Show Time state
 }
 
 CANVAS_DURATION = 10

@@ -35,5 +35,14 @@
       "value": "birthday.gif",
       "duration": 300
     }
+  },
+  {
+    "name": "Hourly Clock",
+    "type": "hourly",
+    "state": "CLOCK",
+    "priority": 5,
+    "params": {
+      "duration": 10
+    }
   }
 ]

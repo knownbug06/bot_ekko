@@ -410,7 +410,28 @@ class StateRenderer:
         # Ensure media player updates
         if self.media_player.is_playing:
              self.media_player.update(surface)
-
+    
+    def handle_CLOCK(self, surface, now, params=None):
+        # --- LOGIC ---
+        
+        current_time = datetime.now().strftime("%I:%M %p") # 12-hour format e.g., 01:20 PM
+        if current_time.startswith("0"):
+            current_time = current_time[1:] # Strip leading zero
+            
+        # Ensure Media Player is showing the correct time
+        # We give it a long duration so it doesn't self-stop; Scheduler controls state exit.
+        
+        from bot_ekko.sys_config import CLOCK_FONT
+        
+        target_text = current_time.capitalize()
+        # Check text AND font (we can't easily check font, but text change is enough trigger usually)
+        # Or just force update if text matches but maybe font is wrong? 
+        # Simpler: If text changes, update. 
+        if not self.media_player.is_playing or self.media_player.current_text != target_text:
+             self.media_player.show_text(current_time, duration=60.0, save_context=False, font=CLOCK_FONT)
+             
+        # --- RENDERING ---
+        self.media_player.update(surface)
 
 
     def _draw_uwu_mouth(self, surface, color=CYAN):
