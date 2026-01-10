@@ -1,4 +1,11 @@
+import os
 import pygame
+
+# Dynamic Base Directory
+# sys_config.py is in bot_ekko/ (inner), so go up 2 levels to get to root
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+SCREEN_ROTATION = 0
 
 LOGICAL_W, LOGICAL_H = 800, 480
 PHYSICAL_W, PHYSICAL_H = 480, 800
@@ -40,7 +47,8 @@ CANVAS_DURATION = 10
 # BLUETOOTH CONFIGURATION
 BLUETOOTH_NAME = "ekko_bt"
 
-SCHEDULE_FILE_PATH = "/home/ekko/bot_ekko/schedule.json"
+SCHEDULE_FILE_PATH = os.path.join(BASE_DIR, "schedule.json")
+DEFAULT_GIF_PATH = os.path.join(BASE_DIR, "bot_ekko", "assets", "anime.gif")
 
 # SLEEP_AT and WAKE_AT are now managed by schedule.json
 
@@ -50,7 +58,7 @@ LOG_LEVEL = "INFO"
 
 # SYSTEM MONITORING
 SYSTEM_MONITORING_ENABLED = True
-SYSTEM_LOG_FILE = "/home/ekko/bot_ekko/system_health.jsonl"
+SYSTEM_LOG_FILE = os.path.join(BASE_DIR, "system_health.jsonl")
 SYSTEM_SAMPLE_RATE = 10.0 # Seconds
 
 # LLM CONFIGURATION

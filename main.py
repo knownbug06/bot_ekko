@@ -30,6 +30,7 @@ from bot_ekko.modules.sensor_fusion.sensor_triggers import SensorDataTriggers
 from bot_ekko.modules.comms.comms_bluetooth import BluetoothManager
 from bot_ekko.modules.system_logs import SystemMonitor
 from bot_ekko.apis.adapters.tenor_api import TenorAPI
+from bot_ekko.sys_config import SCREEN_ROTATION
 
 
 logger = get_logger("Main")
@@ -118,7 +119,7 @@ def main():
                     state_renderer.render(logical_surface, now)
                     
                     # Transform and Display
-                    rotated = pygame.transform.rotate(logical_surface, -90)
+                    rotated = pygame.transform.rotate(logical_surface, SCREEN_ROTATION)
                     screen.blit(rotated, (0, 0))
                     pygame.display.flip()
                 else:

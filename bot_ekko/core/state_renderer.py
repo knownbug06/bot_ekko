@@ -167,7 +167,7 @@ class StateRenderer:
         if text:
             self.media_player.show_text(text, duration=5.0, save_context=False, interrupt_name=interrupt_name)
         else:
-            gif_path = params.get("media_path", "/home/ekko/bot_ekko/bot_ekko/assets/anime.gif") if params else "/home/ekko/bot_ekko/bot_ekko/assets/anime.gif"
+            gif_path = params.get("media_path", DEFAULT_GIF_PATH) if params else DEFAULT_GIF_PATH
             self.media_player.play_gif(gif_path, duration=5.0, save_context=False, interrupt_name=interrupt_name)
     
     def handle_ANGRY(self, surface, now, params=None):
@@ -405,7 +405,7 @@ class StateRenderer:
             self.state_handler.state_history.append(fallback_ctx)
         
             # Placeholder path - user should replace this
-            self.media_player.play_gif("/home/ekko/bot_ekko/bot_ekko/assets/anime.gif", duration=5.0, save_context=False)
+            self.media_player.play_gif(DEFAULT_GIF_PATH, duration=5.0, save_context=False)
             
         # Ensure media player updates
         if self.media_player.is_playing:
