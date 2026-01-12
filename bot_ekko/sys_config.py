@@ -45,7 +45,7 @@ STATES = {
 CANVAS_DURATION = 10
 
 # BLUETOOTH CONFIGURATION
-BLUETOOTH_NAME = "ekko_bt"
+BLUETOOTH_NAME = "Ekko"
 
 SCHEDULE_FILE_PATH = os.path.join(BASE_DIR, "schedule.json")
 DEFAULT_GIF_PATH = os.path.join(BASE_DIR, "bot_ekko", "assets", "anime.gif")

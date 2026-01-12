@@ -164,11 +164,13 @@ class StateRenderer:
         if params and 'param' in params and isinstance(params['param'], dict):
              text = params['param'].get('text')
         
+        duration = params.get("duration", CANVAS_DURATION) if params else CANVAS_DURATION
+        
         if text:
-            self.media_player.show_text(text, duration=5.0, save_context=False, interrupt_name=interrupt_name)
+            self.media_player.show_text(text, duration=duration, save_context=False, interrupt_name=interrupt_name)
         else:
             gif_path = params.get("media_path", DEFAULT_GIF_PATH) if params else DEFAULT_GIF_PATH
-            self.media_player.play_gif(gif_path, duration=5.0, save_context=False, interrupt_name=interrupt_name)
+            self.media_player.play_gif(gif_path, duration=duration, save_context=False, interrupt_name=interrupt_name)
     
     def handle_ANGRY(self, surface, now, params=None):
         # --- LOGIC ---
