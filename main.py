@@ -2,23 +2,36 @@ import pygame
 import sys
 import signal
 import queue
+import signal
+import queue
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import random
-from bot_ekko.core.state_machine import StateHandler
+
+from bot_ekko.sys_config import PHYSICAL_W, PHYSICAL_H, LOGICAL_W, LOGICAL_H, BLACK, SYSTEM_MONITORING_ENABLED
+from bot_ekko.core.logger import get_logger
+
+# Core Components
+from bot_ekko.core.state_machine import StateHandler, StateMachine
+from bot_ekko.core.eyes import Eyes
+from bot_ekko.core.display_manager import init_display
+from bot_ekko.core.command_center import CommandCenter, Command
+from bot_ekko.core.state_renderer import StateRenderer
+from bot_ekko.core.event_manager import EventManager
+from bot_ekko.core.interrupt_manager import InterruptManager
+
+# Modules
 from bot_ekko.modules.media_interface import MediaModule
 from bot_ekko.modules.sensor_fusion.sensor_data_reader import ReadSensorSerialData
-from bot_ekko.modules.comms.comms_bluetooth import BluetoothManager
-
-from bot_ekko.core.state_machine import StateMachine
-from bot_ekko.core.eyes import Eyes
-from bot_ekko.sys_config import *
-from bot_ekko.core.logger import get_logger
-from bot_ekko.core.display_manager import init_display
-from bot_ekko.core.command_center import CommandCenter
-from bot_ekko.core.state_renderer import StateRenderer
-from bot_ekko.core.command_center import Command
-from bot_ekko.core.event_manager import EventManager
 from bot_ekko.modules.sensor_fusion.sensor_triggers import SensorDataTriggers
-from bot_ekko.core.interrupt_manager import InterruptManager
+from bot_ekko.modules.comms.comms_bluetooth import BluetoothManager
+from bot_ekko.modules.system_logs import SystemMonitor
+from bot_ekko.apis.adapters.tenor_api import TenorAPI
+from bot_ekko.apis.adapters.chat_api import ChatAPI
+from bot_ekko.sys_config import SCREEN_ROTATION, SERVER_CONFIG
 
 
 logger = get_logger("Main")
@@ -53,13 +66,25 @@ def main():
     sensor_reader.start()
     
     
+    # API Adapters
+    TENOR_API_KEY = os.getenv("TENOR_API_KEY") 
+    gif_api = TenorAPI(command_center, TENOR_API_KEY)
+    
+    chat_api = ChatAPI(command_center, SERVER_CONFIG["url"])
+
     sensor_data_triggers = SensorDataTriggers()
-    event_manager = EventManager(sensor_data_triggers, command_center, state_renderer, state_handler, interrupt_manager)    
+    event_manager = EventManager(sensor_data_triggers, command_center, state_renderer, state_handler, interrupt_manager, gif_api, chat_api)    
     
 
     # bluetooth manager
     bluetooth_manager = BluetoothManager()
     bluetooth_manager.start()
+
+    # System Monitor
+    system_monitor = None
+    if SYSTEM_MONITORING_ENABLED:
+        system_monitor = SystemMonitor()
+        system_monitor.start()
 
 
     signal.signal(signal.SIGTERM, handle_sigterm)
@@ -97,7 +122,7 @@ def main():
                     state_renderer.render(logical_surface, now)
                     
                     # Transform and Display
-                    rotated = pygame.transform.rotate(logical_surface, -90)
+                    rotated = pygame.transform.rotate(logical_surface, SCREEN_ROTATION)
                     screen.blit(rotated, (0, 0))
                     pygame.display.flip()
                 else:
@@ -113,6 +138,12 @@ def main():
         logger.info("Cleaning up resources...")
         sensor_reader.stop()
         bluetooth_manager.stop()
+        if system_monitor:
+            system_monitor.stop()
+        if gif_api:
+            gif_api.stop()
+        if chat_api:
+            chat_api.stop()
         pygame.quit()
         sys.exit()
 

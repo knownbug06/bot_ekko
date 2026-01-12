@@ -18,13 +18,17 @@ class EventManager:
         command_center: CommandCenter,
         state_renderer: StateRenderer,
         state_handler: StateHandler,
-        interrupt_manager: InterruptManager
+        interrupt_manager: InterruptManager,
+        gif_api = None,
+        chat_api = None,
     ):
         self.sensor_data_trigger = sensor_data_trigger
         self.command_center = command_center
         self.state_renderer = state_renderer
         self.state_handler = state_handler
         self.interrupt_manager = interrupt_manager
+        self.gif_api = gif_api
+        self.chat_api = chat_api
 
         self.sensor_interrupt = "sensor_interrupt"
 
@@ -43,7 +47,7 @@ class EventManager:
 
         if is_proximity:
             if self.wait_sensor_trigger(SENSOR_TRIGGER_ENTRY_TIME):
-                self.interrupt_manager.set_interrupt(self.sensor_interrupt, 50, "UWU")
+                self.interrupt_manager.set_interrupt(self.sensor_interrupt, 50, "WINK")
                 logger.debug("Set proximity interrupt")
             
         elif is_distance:
@@ -58,12 +62,63 @@ class EventManager:
         if bt_data:
             if bt_data.is_connected:
                 clean_bt_data = bt_data.text.strip().upper()
-                cmd, param, *_ = clean_bt_data.split(";") + [None, None] 
+                parts = clean_bt_data.split(";")
+                cmd = parts[0]
+                param = parts[1] if len(parts) > 1 else None
                 
-                if cmd == "STATE":
-                    self.command_center.issue_command(CommandNames.CHANGE_STATE, {"target_state": param})
-                else:
-                    self.interrupt_manager.set_interrupt("canvas_media", 80, "CANVAS", {"param": {"text": param}, "interrupt_name": "canvas_media"})
+                if cmd == "STATE" and param:
+                    self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": param})
+                elif cmd == "GIF" and param:
+                    if self.gif_api:
+                        self.gif_api.fetch_random_gif(param)
+                    else:
+                        logger.warning("GIF API not initialized")
+                elif cmd == "CHAT" and param:
+                    if self.chat_api:
+                        raw_text = bt_data.text.strip()
+                        raw_parts = raw_text.split(";")
+                        raw_param = raw_parts[1] if len(raw_parts) > 1 else ""
+
+                        # 1. Switch to CHAT state immediately with LOADING status
+                        logger.info(f"Switching to CHAT state (Loading) for query: {raw_param}")
+                        self.command_center.issue_command(CommandNames.CHANGE_STATE, params={
+                            "target_state": "CHAT", 
+                            "is_loading": True,
+                            "text": "",
+                            "save_history": True
+                        })
+
+                        # 2. Define callback to handle response later
+                        def on_response(response_text, is_error=False):
+                            logger.info(f"Received Chat API response: {response_text} (Error: {is_error})")
+                            
+                            if is_error:
+                                # Revert to ACTIVE state to clear the "Thinking..." screen
+                                self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": "ACTIVE"})
+                                
+                                # Show error message temporarily using interrupt (5 seconds)
+                                self.interrupt_manager.set_interrupt(
+                                    "chat_error", 
+                                    90, 
+                                    "CANVAS", 
+                                    params={"param": {"text": response_text}, "interrupt_name": "chat_error"},
+                                    duration=5000 
+                                )
+                            else:
+                                # Update CHAT state with text and remove loading
+                                self.command_center.issue_command(CommandNames.CHANGE_STATE, params={
+                                    "target_state": "CHAT",
+                                    "is_loading": False,
+                                    "text": response_text
+                                })
+
+                        # 3. Call API
+                        self.chat_api.query(raw_param, on_response)
+                        
+                    else:
+                        logger.warning("Chat API not initialized")
+                elif cmd:
+                    self.interrupt_manager.set_interrupt("canvas_media", 80, "CANVAS", params={"param": {"text": param}, "interrupt_name": "canvas_media"})
                     
         
         

@@ -3,12 +3,15 @@ Description=Bot Ekko Service
 After=multi-user.target
 
 [Service]
-ExecStart=/usr/bin/python3 /home/ekko/bot_ekko/main.py
-WorkingDirectory=/home/ekko/bot_ekko
+ExecStart=/home/ekko/mainbot/bot_ekko/.venv/bin/python /home/ekko/mainbot/bot_ekko/main.py
+WorkingDirectory=/home/ekko/mainbot/bot_ekko
 StandardOutput=inherit
 StandardError=inherit
 Restart=always
+RestartSec=10
 User=ekko
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/ekko/.Xauthority
 
 [Install]
 WantedBy=multi-user.target

@@ -4,19 +4,21 @@ import pygame
 from PIL import Image, ImageSequence
 from bot_ekko.core.logger import get_logger
 from bot_ekko.sys_config import *
-# from bot_ekko.core.interrupt_manager import InterruptManager # Avoid circular import if possible, use typing only
+# from bot_ekko.core.interrupt_manager import InterruptManager # Avoid circular import via TYPE_CHECKING
 from typing import Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from bot_ekko.core.interrupt_manager import InterruptManager
+    from bot_ekko.core.command_center import CommandCenter
+
+from bot_ekko.core.models import CommandNames
 
 logger = get_logger("MediaModule")
 
 class MediaModule(threading.Thread):
-    def __init__(self, state_handler, interrupt_manager: Optional['InterruptManager'] = None):
+    def __init__(self, interrupt_manager, command_center):
         super().__init__(daemon=True)
-        self.state_handler = state_handler
         self.interrupt_manager = interrupt_manager
-        self.current_media_type = None
+        self.command_center = command_center
         self.current_media_type = None
         self.media_end_time = 0
         self.current_interrupt_name = None
@@ -40,11 +42,13 @@ class MediaModule(threading.Thread):
         # Text specific
         self.current_text = ""
         self.text_surface = None
+        
+        # Cache
+        self.gif_cache = {}
 
     def _start_media(self, duration=None, save_context=True, interrupt_name=None):
         """Helper to start media playback and handling state context."""
-        if save_context:
-            self.state_handler.save_state_ctx()
+        # Note: Context saving is now handled by CommandCenter before switching state if requested.
             
         self.current_interrupt_name = interrupt_name
         self.is_playing = True
@@ -56,21 +60,29 @@ class MediaModule(threading.Thread):
 
     def play_gif(self, path, duration=None, save_context=True, interrupt_name=None):
         try:
-            pil_image = Image.open(path)
             frames = []
             delays = []
             
-            # Extract frames and duration
-            for frame in ImageSequence.Iterator(pil_image):
-                # Convert to RGBA and then to pygame surface
-                frame_rgba = frame.convert("RGBA")
-                mode = frame_rgba.mode
-                size = frame_rgba.size
-                data = frame_rgba.tobytes()
+            # Check cache
+            if path in self.gif_cache:
+                frames, delays = self.gif_cache[path]
+            else:
+                pil_image = Image.open(path)
                 
-                py_image = pygame.image.fromstring(data, size, mode)
-                frames.append(py_image)
-                delays.append(frame.info.get('duration', 100) / 1000.0) # Convert ms to seconds
+                # Extract frames and duration
+                for frame in ImageSequence.Iterator(pil_image):
+                    # Convert to RGBA and then to pygame surface
+                    frame_rgba = frame.convert("RGBA")
+                    mode = frame_rgba.mode
+                    size = frame_rgba.size
+                    data = frame_rgba.tobytes()
+                    
+                    py_image = pygame.image.fromstring(data, size, mode)
+                    frames.append(py_image)
+                    delays.append(frame.info.get('duration', 100) / 1000.0) # Convert ms to seconds
+                
+                if frames:
+                    self.gif_cache[path] = (frames, delays)
 
             if not frames:
                 logger.error(f"No frames found in GIF: {path}")
@@ -100,15 +112,68 @@ class MediaModule(threading.Thread):
         except Exception as e:
             logger.error(f"Failed to load Image {path}: {e}")
 
-    def show_text(self, text, duration=5.0, save_context=True, interrupt_name=None):
-        # Render text once
-        surf = MAIN_FONT.render(text, True, CYAN)
+    def _render_wrapped_text(self, text, font, color, max_width):
+        """Helper to render text wrapped to a max width."""
+        words = text.split(' ')
+        lines = []
+        current_line = []
+        
+        for word in words:
+            test_line = ' '.join(current_line + [word])
+            w, h = font.size(test_line)
+            if w < max_width:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                    current_line = [word]
+                else:
+                    # Word itself is too long, just add it (or could split char by char)
+                    lines.append(word)
+                    current_line = []
+        
+        if current_line:
+            lines.append(' '.join(current_line))
+            
+        # Render lines
+        rendered_lines = [font.render(line, True, color) for line in lines]
+        
+        # specific case for empty text
+        if not rendered_lines:
+             return font.render("", True, color)
+
+        total_height = sum(line.get_height() for line in rendered_lines)
+        max_line_width = max(line.get_width() for line in rendered_lines)
+        
+        # Create surface
+        # We use transparent background
+        surface = pygame.Surface((max_line_width, total_height), pygame.SRCALPHA)
+        
+        y = 0
+        for line_surf in rendered_lines:
+            # Center confirm? Or Left align?
+            # Let's center align each line relative to the widest line for aesthetics
+            x = (max_line_width - line_surf.get_width()) // 2
+            surface.blit(line_surf, (x, y))
+            y += line_surf.get_height()
+            
+        return surface
+
+    def show_text(self, text, duration=CANVAS_DURATION, save_context=True, interrupt_name=None, font=None):
+        # Render text wrapped
+        # LOGICAL_W is 800, let's use 760 for padding
+        text = text.capitalize()
+        max_width = LOGICAL_W - 40 
+        
+        use_font = font if font else MAIN_FONT
+        surf = self._render_wrapped_text(text, use_font, CYAN, max_width)
+        
         with self.lock:
             self.current_text = text
             self.text_surface = surf
             self.current_media_type = "TEXT"
         self._start_media(duration, save_context, interrupt_name)
-        logger.info(f"Showing Text: '{text}' for {duration}s")
+        logger.info(f"Showing Text for {duration}s")
 
     def stop_media(self):
         """Stops media and restores state."""
@@ -117,13 +182,13 @@ class MediaModule(threading.Thread):
             with self.lock:
                 self.current_media_type = None
             
-            if self.current_interrupt_name and self.interrupt_manager:
+            if self.current_interrupt_name:
                 logger.info(f"Clearing interrupt: {self.current_interrupt_name}")
                 self.interrupt_manager.clear_interrupt(self.current_interrupt_name)
                 self.current_interrupt_name = None
             else:
-                self.state_handler.restore_state_ctx()
-            
+                logger.info("Restoring state via CommandCenter")
+                self.command_center.issue_command(CommandNames.RESTORE_STATE)
             logger.info("Media stopped.")
 
     def run(self):

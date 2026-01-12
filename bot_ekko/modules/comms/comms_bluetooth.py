@@ -49,7 +49,7 @@ class BluetoothManager(threading.Thread):
         try:
             self.peripheral = peripheral.Peripheral(
                 self.adapter_address,
-                local_name='Ekko-Pi'
+                local_name='Ekko'
             )
 
             self.peripheral.add_service(

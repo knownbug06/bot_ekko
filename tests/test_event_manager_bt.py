@@ -9,6 +9,7 @@ class TestEventManagerBT(unittest.TestCase):
         self.mock_command_center = MagicMock()
         self.mock_state_renderer = MagicMock()
         self.mock_state_handler = MagicMock()
+        self.mock_interrupt_manager = MagicMock()
         
         # Initial state setup
         self.mock_state_renderer.interrupt_state = False
@@ -17,28 +18,41 @@ class TestEventManagerBT(unittest.TestCase):
             self.mock_sensor_trigger,
             self.mock_command_center,
             self.mock_state_renderer,
-            self.mock_state_handler
+            self.mock_state_handler,
+            self.mock_interrupt_manager
         )
 
-    def test_bt_command_permanent_state_change(self):
+    def test_bt_command_state_change(self):
         """
-        Verification Test:
-        Desired Behavior: BT Command should NOT save context and should set interrupt=False (or clear it).
+        Verify that STATE;ANGRY issues a state change command.
         """
         # Setup BT Data
         bt_data = MagicMock(spec=BluetoothData)
         bt_data.is_connected = True
-        bt_data.text = "ANGRY"
+        bt_data.text = "STATE;ANGRY"
         
         # Act
         self.event_manager.update_bt_events(bt_data)
         
-        # Assertions for the FIXED behavior
-        # Should NOT save context
-        self.mock_state_handler.save_state_ctx.assert_not_called()
+        # Assertions
+        # Should issue command
+        from bot_ekko.core.models import CommandNames
+        self.mock_command_center.issue_command.assert_called_with(CommandNames.CHANGE_STATE, params={"target_state": "ANGRY"})
         
-        # Should set interrupt_state = False
-        self.assertFalse(self.mock_state_renderer.interrupt_state)
+        # Should NOT trigger interrupt
+        self.mock_interrupt_manager.set_interrupt.assert_not_called()
 
+    def test_bt_text_interrupt(self):
+        """
+        Verify that plain text triggers an interrupt.
+        """
+        bt_data = MagicMock(spec=BluetoothData)
+        bt_data.is_connected = True
+        bt_data.text = "HELLO"
+
+        self.event_manager.update_bt_events(bt_data)
+
+        self.mock_interrupt_manager.set_interrupt.assert_called_once()
+    
 if __name__ == '__main__':
     unittest.main()

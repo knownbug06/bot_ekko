@@ -35,7 +35,7 @@ class InterruptManager:
         # Track if we are currently handling an interrupt to manage context
         self.is_interrupted = False
 
-    def set_interrupt(self, name: str, priority: int, target_state: str, params: dict = None):
+    def set_interrupt(self, name: str, priority: int, target_state: str, *_, params: dict = None):
         """
         Activates or updates an interrupt.
         """
@@ -79,25 +79,26 @@ class InterruptManager:
         
         current_state = self.state_handler.get_state()
         
-        # If we are not yet interrupted, save context first
+        # Determine if we should save history
+        save_history = False
         if not self.is_interrupted:
-            self.state_handler.save_state_ctx()
+            save_history = True
             self.is_interrupted = True
-            logger.info("Interrupt cycle started. Context saved.")
+            logger.info("Interrupt cycle started. Requesting history save.")
 
         # Transition if needed
         # We check if we are already in the target state of the highest priority interrupt
         # This allows switching between different interrupts (e.g. Distance -> Proximity)
         if current_state != highest_priority_item.target_state:
              logger.info(f"Applying interrupt: {highest_priority_item.name} -> {highest_priority_item.target_state}")
-             cmd_params = {"target_state": highest_priority_item.target_state}
+             cmd_params = {"target_state": highest_priority_item.target_state, "save_history": save_history}
              if highest_priority_item.params:
                  # We merge interrupt params (like {'param': {'text': 'HELLO'}}) into the command
                  # But issue_command expects a single dict for params. 
                  # The StateHandler stores this entire dict as current_state_params.
                  cmd_params.update(highest_priority_item.params)
                  
-             self.command_center.issue_command(CommandNames.CHANGE_STATE, cmd_params)
+             self.command_center.issue_command(CommandNames.CHANGE_STATE, params=cmd_params)
 
     def _restore_original_state(self):
         """
@@ -105,5 +106,5 @@ class InterruptManager:
         """
         if self.is_interrupted:
             logger.info("No active interrupts. Restoring original context.")
-            self.state_handler.restore_state_ctx()
+            self.command_center.issue_command(CommandNames.RESTORE_STATE)
             self.is_interrupted = False

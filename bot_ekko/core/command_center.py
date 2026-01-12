@@ -17,9 +17,16 @@ class Command:
         if not self.state_handler:
             logger.error("All commands must come through CommandCenter, with StateHandler injected")
             return
+        # Custom handling for save_history
+        if self.command_ctx.params and self.command_ctx.params.get("save_history"):
+            self.state_handler.save_state_ctx()
+
+        # Command Dispatch
         if self.command_ctx.name == CommandNames.CHANGE_STATE:
             target_state = self.command_ctx.params["target_state"]
             self.state_handler.set_state(target_state, self.command_ctx.params)
+        elif self.command_ctx.name == CommandNames.RESTORE_STATE:
+            self.state_handler.restore_state_ctx()
         else:
             logger.warning(f"Unknown command: {self.command_ctx.name}")
 
@@ -29,7 +36,7 @@ class CommandCenter:
         self.command_queue = command_queue
         self.state_handler = state_handler
     
-    def issue_command(self, command_name: CommandNames, params: Optional[dict] = None):
+    def issue_command(self, command_name: CommandNames, *_, params: Optional[dict] = None):
         command_ctx = CommandCtx(name=command_name, params=params)
         command = Command(command_ctx, self.state_handler)
         logger.info(f"Issuing command: {command.command_ctx.name}, params: {command.command_ctx.params}") 
