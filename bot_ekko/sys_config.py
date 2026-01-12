@@ -63,6 +63,6 @@ SYSTEM_SAMPLE_RATE = 10.0 # Seconds
 
 # LLM CONFIGURATION
 SERVER_CONFIG = {
-    "url": "http://192.168.0.2:5000/chat", # Replace with your server IP
+    "url": "http://localhost:8000", 
     "api_key": None
 }

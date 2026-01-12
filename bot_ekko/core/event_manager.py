@@ -20,6 +20,7 @@ class EventManager:
         state_handler: StateHandler,
         interrupt_manager: InterruptManager,
         gif_api = None,
+        chat_api = None,
     ):
         self.sensor_data_trigger = sensor_data_trigger
         self.command_center = command_center
@@ -27,6 +28,7 @@ class EventManager:
         self.state_handler = state_handler
         self.interrupt_manager = interrupt_manager
         self.gif_api = gif_api
+        self.chat_api = chat_api
 
         self.sensor_interrupt = "sensor_interrupt"
 
@@ -72,7 +74,7 @@ class EventManager:
                     else:
                         logger.warning("GIF API not initialized")
                 elif cmd == "CHAT" and param:
-                    if self.llm_router:
+                    if self.chat_api:
                         raw_text = bt_data.text.strip()
                         raw_parts = raw_text.split(";")
                         raw_param = raw_parts[1] if len(raw_parts) > 1 else ""
@@ -87,21 +89,34 @@ class EventManager:
                         })
 
                         # 2. Define callback to handle response later
-                        def on_response(response_text):
-                            logger.info(f"Received LLM response: {response_text}")
-                            # Update CHAT state with text and remove loading
-                            # Note: We must update the state params. We can just Re-Issue CHANGE_STATE to CHAT with new params.
-                            self.command_center.issue_command(CommandNames.CHANGE_STATE, params={
-                                "target_state": "CHAT",
-                                "is_loading": False,
-                                "text": response_text
-                            })
+                        def on_response(response_text, is_error=False):
+                            logger.info(f"Received Chat API response: {response_text} (Error: {is_error})")
+                            
+                            if is_error:
+                                # Revert to ACTIVE state to clear the "Thinking..." screen
+                                self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": "ACTIVE"})
+                                
+                                # Show error message temporarily using interrupt (5 seconds)
+                                self.interrupt_manager.set_interrupt(
+                                    "chat_error", 
+                                    90, 
+                                    "CANVAS", 
+                                    params={"param": {"text": response_text}, "interrupt_name": "chat_error"},
+                                    duration=5000 
+                                )
+                            else:
+                                # Update CHAT state with text and remove loading
+                                self.command_center.issue_command(CommandNames.CHANGE_STATE, params={
+                                    "target_state": "CHAT",
+                                    "is_loading": False,
+                                    "text": response_text
+                                })
 
-                        # 3. Call Router
-                        # self.llm_router.query(raw_param, on_response)
+                        # 3. Call API
+                        self.chat_api.query(raw_param, on_response)
                         
                     else:
-                        logger.warning("LLM Router not initialized")
+                        logger.warning("Chat API not initialized")
                 elif cmd:
                     self.interrupt_manager.set_interrupt("canvas_media", 80, "CANVAS", params={"param": {"text": param}, "interrupt_name": "canvas_media"})
                     

@@ -30,7 +30,8 @@ from bot_ekko.modules.sensor_fusion.sensor_triggers import SensorDataTriggers
 from bot_ekko.modules.comms.comms_bluetooth import BluetoothManager
 from bot_ekko.modules.system_logs import SystemMonitor
 from bot_ekko.apis.adapters.tenor_api import TenorAPI
-from bot_ekko.sys_config import SCREEN_ROTATION
+from bot_ekko.apis.adapters.chat_api import ChatAPI
+from bot_ekko.sys_config import SCREEN_ROTATION, SERVER_CONFIG
 
 
 logger = get_logger("Main")
@@ -68,9 +69,11 @@ def main():
     # API Adapters
     TENOR_API_KEY = os.getenv("TENOR_API_KEY") 
     gif_api = TenorAPI(command_center, TENOR_API_KEY)
+    
+    chat_api = ChatAPI(command_center, SERVER_CONFIG["url"])
 
     sensor_data_triggers = SensorDataTriggers()
-    event_manager = EventManager(sensor_data_triggers, command_center, state_renderer, state_handler, interrupt_manager, gif_api)    
+    event_manager = EventManager(sensor_data_triggers, command_center, state_renderer, state_handler, interrupt_manager, gif_api, chat_api)    
     
 
     # bluetooth manager
@@ -139,6 +142,8 @@ def main():
             system_monitor.stop()
         if gif_api:
             gif_api.stop()
+        if chat_api:
+            chat_api.stop()
         pygame.quit()
         sys.exit()
 
