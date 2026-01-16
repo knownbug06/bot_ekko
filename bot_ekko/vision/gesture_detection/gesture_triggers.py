@@ -14,8 +14,9 @@ class GestureDetection:
 
         self._gesture_state_mapping = {
             "thumb_up": "HAPPY",
-            "thumb_down": "RAINBOW_EYES",
-            "closed_fist": "ACTIVE"
+            "thumb_down": "ANGRY",
+            "closed_fist": "ACTIVE",
+            "victory": "UWU"
         }
 
         self._last_gesture = None
