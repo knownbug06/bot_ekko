@@ -66,3 +66,5 @@ SERVER_CONFIG = {
     "url": "http://localhost:8000", 
     "api_key": None
 }
+
+SENSOR_UPDATE_RATE = 0.1  # seconds

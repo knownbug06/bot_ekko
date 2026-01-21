@@ -21,8 +21,9 @@ class StateRenderer:
         self.state_handler = state_handler
         self.command_center = command_center
         
-        self.media_player = MediaModule(self.interrupt_manager, self.command_center)
-        self.media_player.start()
+        # self.media_player = MediaModule(self.interrupt_manager, self.command_center)
+        self.media_player = None
+        # self.media_player.start()
         
         # Rendering attributes
         self.effects = EffectsRenderer()

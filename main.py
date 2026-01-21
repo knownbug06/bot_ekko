@@ -33,6 +33,8 @@ from bot_ekko.apis.adapters.tenor_api import TenorAPI
 from bot_ekko.apis.adapters.chat_api import ChatAPI
 from bot_ekko.sys_config import SCREEN_ROTATION, SERVER_CONFIG
 
+from bot_ekko.core.mainbot import MainBotServicesManager
+
 
 logger = get_logger("Main")
 
@@ -59,26 +61,31 @@ def main():
     command_center = CommandCenter(cmd_queue, state_handler)
     interrupt_manager = InterruptManager(state_handler, command_center)
     state_renderer = StateRenderer(eyes, state_handler, command_center, interrupt_manager)
+
+    mainbot = MainBotServicesManager(command_center, state_renderer, interrupt_manager)
+    mainbot.init_services()
+    mainbot.start_services()
+    
     
     
     # sensor reader
-    sensor_reader = ReadSensorSerialData(cmd_queue)
-    sensor_reader.start()
+    # sensor_reader = ReadSensorSerialData(cmd_queue)
+    # sensor_reader.start()
     
     
     # API Adapters
-    TENOR_API_KEY = os.getenv("TENOR_API_KEY") 
-    gif_api = TenorAPI(command_center, TENOR_API_KEY)
+    # TENOR_API_KEY = os.getenv("TENOR_API_KEY") 
+    # gif_api = TenorAPI(command_center, TENOR_API_KEY)
     
-    chat_api = ChatAPI(command_center, SERVER_CONFIG["url"])
+    # chat_api = ChatAPI(command_center, SERVER_CONFIG["url"])
 
-    sensor_data_triggers = SensorDataTriggers()
-    event_manager = EventManager(sensor_data_triggers, command_center, state_renderer, state_handler, interrupt_manager, gif_api, chat_api)    
+    # sensor_data_triggers = SensorDataTriggers()
+    # event_manager = EventManager(sensor_data_triggers, command_center, state_renderer, state_handler, interrupt_manager, gif_api, chat_api)    
     
 
     # bluetooth manager
-    bluetooth_manager = BluetoothManager()
-    bluetooth_manager.start()
+    # bluetooth_manager = BluetoothManager()
+    # bluetooth_manager.start()
 
     # System Monitor
     system_monitor = None
@@ -105,14 +112,16 @@ def main():
 
                 eyes.apply_physics()
 
-                sensor_data = sensor_reader.get_sensor_data()
-                bluetooth_data = bluetooth_manager.get_bt_data()
+                mainbot.service_loop_update()
 
-                logger.debug(f"TOF Distance: {sensor_data.tof.mm}")
-                logger.debug(f"Bluetooth Data: {bluetooth_data}")
+                # sensor_data = sensor_reader.get_sensor_data()
+                # bluetooth_data = bluetooth_manager.get_bt_data()
 
-                event_manager.update_sensor_events(sensor_data)
-                event_manager.update_bt_events(bluetooth_data)
+                # logger.debug(f"TOF Distance: {sensor_data.tof.mm}")
+                # logger.debug(f"Bluetooth Data: {bluetooth_data}")
+
+                # event_manager.update_sensor_events(sensor_data)
+                # event_manager.update_bt_events(bluetooth_data)
 
                 # Render
                 if pygame.display.get_init():
@@ -136,8 +145,8 @@ def main():
         logger.info("\nStopping bot...")
     finally:
         logger.info("Cleaning up resources...")
-        sensor_reader.stop()
-        bluetooth_manager.stop()
+        # sensor_reader.stop()
+        # bluetooth_manager.stop()
         if system_monitor:
             system_monitor.stop()
         if gif_api:
