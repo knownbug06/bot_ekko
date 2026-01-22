@@ -13,16 +13,16 @@ from bot_ekko.core.scheduler import Scheduler
 logger = get_logger("StateRenderer")
 
 class StateRenderer:
-    def __init__(self, eyes, state_handler, command_center, interrupt_manager=None):
+    def __init__(self, eyes, state_handler, command_center):
         self.eyes = eyes
         self.last_blink = 0
         self.last_mood_change = 0
-        self.interrupt_manager = interrupt_manager
         self.state_handler = state_handler
         self.command_center = command_center
         
-        self.media_player = MediaModule(self.interrupt_manager, self.command_center)
-        self.media_player.start()
+        # self.media_player = MediaModule(self.interrupt_manager, self.command_center)
+        self.media_player = None
+        # self.media_player.start()
         
         # Rendering attributes
         self.effects = EffectsRenderer()
@@ -57,7 +57,7 @@ class StateRenderer:
         """
         self._check_schedule(now)
     
-        current_state = self.state_handler.get_state()
+        current_state = self.state_handler.get_state().upper()
         handler_name = f"handle_{current_state}"
         handler = getattr(self, handler_name, None)
         if handler:

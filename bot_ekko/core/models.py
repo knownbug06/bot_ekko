@@ -1,6 +1,16 @@
+from __future__ import annotations
+
+from typing import List
 from pydantic import BaseModel
 from typing import Optional
 from enum import Enum
+
+from typing import Dict, Any, Union
+import json
+
+from bot_ekko.core.logger import get_logger
+
+logger = get_logger("Models")
 
 
 class TOFSensorData(BaseModel):
@@ -12,6 +22,14 @@ class IMUSensorData(BaseModel):
     ax: float
     ay: float
     az: float
+
+
+class GestureData(BaseModel):
+    gesture: str
+    score: float
+    status: str
+
+
 
 
 class SensorData(BaseModel):
@@ -46,3 +64,59 @@ class CommandCtx(BaseModel):
 class BluetoothData(BaseModel):
     text: str
     is_connected: Optional[bool] = False
+
+
+class ServiceSensorConfig(BaseModel):
+    name: str
+    baud: int
+    port: str
+    enabled: bool = False
+
+    sensor_triggers: Dict[str, Union[str, Dict[str, int]]]
+    proximity_duration: int = 10
+    sensor_update_rate: float = 0.1
+
+
+class ServiceBluetoothConfig(BaseModel):
+    name: str
+    enabled: bool = False
+    
+
+class ServiceGestureConfig(BaseModel):
+    name: str
+    enabled: bool = False
+    socket_path: str = "/tmp/ekko_ipc.sock"
+    gesture_update_rate: float = 0.1
+    
+    # Optional mappings if needed in config
+    gesture_state_mapping: Optional[Dict[str, str]] = {}
+
+
+class ServiceSystemLogsConfig(BaseModel):
+    name: str
+    enabled: bool = False
+    sample_rate: float = 10.0
+    log_file: Optional[str] = None
+
+
+class ServicesConfig(BaseModel):
+    sensor_service: ServiceSensorConfig
+    bt_service: ServiceBluetoothConfig
+    gesture_service: ServiceGestureConfig
+    system_logs_service: Optional[ServiceSystemLogsConfig]
+
+
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]):
+        return cls(**data)
+
+    @classmethod
+    def from_json_file(cls, file_path: str):
+        with open(file_path, "r") as f:
+            data = json.load(f)
+        logger.info(f"Loaded services config from {file_path}")
+        return cls(**data)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return self.dict()

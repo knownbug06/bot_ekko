@@ -5,7 +5,7 @@ __pycache__/
 
 
 system_health.jsonl
-
+.idea
 # C extensions
 *.so
 
