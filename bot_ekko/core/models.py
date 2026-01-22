@@ -24,6 +24,14 @@ class IMUSensorData(BaseModel):
     az: float
 
 
+class GestureData(BaseModel):
+    gesture: str
+    score: float
+    status: str
+
+
+
+
 class SensorData(BaseModel):
     tof: TOFSensorData
     imu: IMUSensorData
@@ -74,9 +82,22 @@ class ServiceBluetoothConfig(BaseModel):
     enabled: bool = False
     
 
+class ServiceGestureConfig(BaseModel):
+    name: str
+    enabled: bool = False
+    socket_path: str = "/tmp/ekko_ipc.sock"
+    gesture_update_rate: float = 0.1
+    
+    # Optional mappings if needed in config
+    gesture_state_mapping: Optional[Dict[str, str]] = {}
+
+
 class ServicesConfig(BaseModel):
     sensor_service: ServiceSensorConfig
     bt_service: ServiceBluetoothConfig
+    gesture_service: ServiceGestureConfig
+
+
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]):

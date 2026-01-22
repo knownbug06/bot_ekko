@@ -2,8 +2,10 @@ import queue
 from typing import Dict
 
 from bot_ekko.core.command_center import Command, CommandCenter
-from bot_ekko.services import SensorService, BluetoothService
+from bot_ekko.services import SensorService, BluetoothService, GestureService
 from bot_ekko.core.models import ServicesConfig
+
+
 from bot_ekko.core.interrupts import InterruptHandler
 from bot_ekko.core.state_machine import StateHandler
 from bot_ekko.core.logger import get_logger
@@ -29,32 +31,34 @@ class MainBotServicesManager:
         self.enabled_services = []
 
     def init_services(self, services_config: ServicesConfig):
-        try:
-            self.service_sensor = SensorService(
-                command_center=self.command_center,
-                service_sensor_config=services_config.sensor_service,
-                interrupt_handler=self.interrupt_handler
-            )
-            self.service_bt = BluetoothService(
-                command_center=self.command_center,
-                service_bt_config=services_config.bt_service
-            )
+        self.service_sensor = SensorService(
+            command_center=self.command_center,
+            service_sensor_config=services_config.sensor_service,
+            interrupt_handler=self.interrupt_handler
+        )
+        self.service_bt = BluetoothService(
+            command_center=self.command_center,
+            service_bt_config=services_config.bt_service
+        )
+        self.service_gesture = GestureService(
+            command_center=self.command_center,
+            service_gesture_config=services_config.gesture_service
+        )
 
-            # add services to the dictionary
-            self.all_services.append(self.service_sensor)
-            self.all_services.append(self.service_bt)
-        except SensorConnectionError as e:
-            logger.error(f"Failed to initialize services: {e}")
-        except Exception as e:
-            logger.error(f"Failed to initialize services: {e}")
-            raise
+        # add services to the dictionary
+        self.all_services.append(self.service_sensor)
+        self.all_services.append(self.service_bt)
+        self.all_services.append(self.service_gesture)
         
         # add enabled services to the list
         self.enabled_services = [i for i in self.all_services if i.enabled]
     
     def start_services(self):
         for service in self.enabled_services:
-
+            if service.status == ServiceStatus.RUNNING:
+                logger.info(f"Service {service.name} is already running")
+                continue
+            
             logger.info(f"Starting service: {service.name}")
             try:
                 service.start()

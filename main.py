@@ -57,6 +57,11 @@ def main():
     # 1. Thread-safe command queue
     cmd_queue: queue.Queue[Command] = queue.Queue()
 
+    gif_api = None
+    chat_api = None
+    gesture_manager = None
+
+
     services_config = ServicesConfig.from_json_file("bot_ekko/config.json")
 
     # 2. Initialize Architecture
@@ -75,29 +80,6 @@ def main():
     mainbot.start_services()
 
     
-
-    # sensor reader
-    # sensor_reader = ReadSensorSerialData(cmd_queue)
-    # sensor_reader.start()
-    
-    
-    # API Adapters
-    # TENOR_API_KEY = os.getenv("TENOR_API_KEY")
-    # gif_api = TenorAPI(command_center, TENOR_API_KEY)
-    
-    # chat_api = ChatAPI(command_center, SERVER_CONFIG["url"])
-
-    # sensor_data_triggers = SensorDataTriggers()
-    # event_manager = EventManager(sensor_data_triggers, command_center, state_renderer, state_handler, interrupt_manager, gif_api, chat_api)
-    
-
-    # bluetooth manager
-    # bluetooth_manager = BluetoothManager()
-    # bluetooth_manager.start()
-
-    # Gesture Detection
-    gesture_manager = GestureDetection(command_center)
-    gesture_manager.start()
 
     # System Monitor
     system_monitor = None
@@ -126,16 +108,6 @@ def main():
                 interrupt_handler.update()
 
                 eyes.apply_physics()
-
-
-                # sensor_data = sensor_reader.get_sensor_data()
-                # bluetooth_data = bluetooth_manager.get_bt_data()
-
-                # logger.debug(f"TOF Distance: {sensor_data.tof.mm}")
-                # logger.debug(f"Bluetooth Data: {bluetooth_data}")
-
-                # event_manager.update_sensor_events(sensor_data)
-                # event_manager.update_bt_events(bluetooth_data)
 
                 # Render
                 if pygame.display.get_init():
@@ -167,8 +139,11 @@ def main():
             gif_api.stop()
         if chat_api:
             chat_api.stop()
-        if gesture_manager:
-            gesture_manager.stop()
+        if chat_api:
+            chat_api.stop()
+        # if gesture_manager:
+        #     gesture_manager.stop()
+
         pygame.quit()
         sys.exit()
 

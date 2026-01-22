@@ -15,5 +15,17 @@
     "bt_service": {
         "name": "bt_service",
         "enabled": true
+    },
+    "gesture_service": {
+        "name": "gesture_service",
+        "enabled": true,
+        "socket_path": "/tmp/ekko_ipc.sock",
+        "gesture_update_rate": 0.1,
+        "gesture_state_mapping": {
+            "thumb_up": "HAPPY",
+            "thumb_down": "ANGRY",
+            "closed_fist": "ACTIVE",
+            "victory": "UWU"
+        }
     }
 }
