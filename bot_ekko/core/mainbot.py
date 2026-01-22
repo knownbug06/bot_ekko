@@ -25,7 +25,8 @@ class MainBotServicesManager:
         self.command_center = CommandCenter(self.command_queue, self.state_handler)
         self.interrupt_handler = interrupt_handler
 
-        self.services = []
+        self.all_services = []
+        self.enabled_services = []
 
     def init_services(self, services_config: ServicesConfig):
         try:
@@ -34,31 +35,41 @@ class MainBotServicesManager:
                 service_sensor_config=services_config.sensor_service,
                 interrupt_handler=self.interrupt_handler
             )
-            # self.service_bt = BluetoothService(
-            #     command_center=self.command_center,
-            #     service_bt_config=services_config.bt_service
-            # )
+            self.service_bt = BluetoothService(
+                command_center=self.command_center,
+                service_bt_config=services_config.bt_service
+            )
 
             # add services to the dictionary
-            self.services.append(self.service_sensor)
-            # self.services.append(selfa.service_bt)
+            self.all_services.append(self.service_sensor)
+            self.all_services.append(self.service_bt)
         except SensorConnectionError as e:
             logger.error(f"Failed to initialize services: {e}")
         except Exception as e:
             logger.error(f"Failed to initialize services: {e}")
             raise
+        
+        # add enabled services to the list
+        self.enabled_services = [i for i in self.all_services if i.enabled]
     
     def start_services(self):
-        for service in self.services:
+        for service in self.enabled_services:
+
             logger.info(f"Starting service: {service.name}")
-            service.start()
+            try:
+                service.start()
+            except SensorConnectionError as e:
+                logger.error(f"Failed to start service: {service.name}: {e}")
+            except Exception as e:
+                logger.error(f"Failed to start service: {service.name}: {e}")
+                raise
     
     def stop_services(self):
-        for service in self.services:
+        for service in self.enabled_services:
             service.stop()
     
     def service_loop_update(self):
-        for service in self.services:
+        for service in self.enabled_services:
             service.update()
         
 

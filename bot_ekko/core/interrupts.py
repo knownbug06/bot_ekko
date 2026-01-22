@@ -26,24 +26,29 @@ class InterruptHandler:
     def set_interrupt(self, name: str, duration: int, target_state: str, priority: int = 10, params: dict = None):
         """
         Sets or updates an interrupt.
+        :param duration: Duration in seconds.
         """
         current_time = pygame.time.get_ticks()
+        # Convert duration to milliseconds for comparison with pygame ticks
+        duration_ms = duration * 1000
+        
         item = InterruptItem(
             name=name,
             target_state=target_state,
             priority=priority,
-            duration=duration,
+            duration=duration_ms,
             start_time=current_time,
             params=params or {}
         )
         if name in self.active_interrupts:
             existing = self.active_interrupts[name]
+            # Check if existing interrupt is still active (units are now consistent in ms)
             if current_time - existing.start_time <= existing.duration:
-                logger.info(f"Interrupt '{name}' is already active. Skipping overwrite.")
+                # logger.info(f"Interrupt '{name}' is already active. Skipping overwrite.")
                 return
 
         self.active_interrupts[name] = item
-        logger.info(f"Set interrupt '{name}': {item}")
+        logger.info(f"Set interrupt '{name}': {item} (duration_ms={duration_ms})")
         self._evaluate_state()
 
     def update(self):

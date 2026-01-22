@@ -119,7 +119,6 @@ def main():
 
                 mainbot.service_loop_update()
                 interrupt_handler.update()
-                # print('yep')
 
                 eyes.apply_physics()
 

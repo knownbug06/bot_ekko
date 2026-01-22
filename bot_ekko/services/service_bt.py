@@ -10,7 +10,7 @@ from bot_ekko.core.command_center import CommandCenter
 
 class BluetoothService(ThreadedService):
     def __init__(self, service_bt_config: ServiceBluetoothConfig, command_center: CommandCenter, name: str = "bluetooth"):
-        super().__init__(name)
+        super().__init__(name, enabled=service_bt_config.enabled)
         self.adapter_address: Optional[str] = None
         self.peripheral: Optional[peripheral.Peripheral] = None
         self.is_connected: bool = False
@@ -120,8 +120,9 @@ class BluetoothService(ThreadedService):
             if cmd == "STATE":
                 self.command_center.issue_command(
                     command_name=CommandNames.CHANGE_STATE,
-                    params={"target_state": query}
+                    params={"target_state": query.upper()}
                 )
+            
 
 
 

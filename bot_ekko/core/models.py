@@ -62,6 +62,7 @@ class ServiceSensorConfig(BaseModel):
     name: str
     baud: int
     port: str
+    enabled: bool = False
 
     sensor_triggers: Dict[str, Union[str, Dict[str, int]]]
     proximity_duration: int = 10
@@ -70,7 +71,7 @@ class ServiceSensorConfig(BaseModel):
 
 class ServiceBluetoothConfig(BaseModel):
     name: str
-    
+    enabled: bool = False
     
 
 class ServicesConfig(BaseModel):

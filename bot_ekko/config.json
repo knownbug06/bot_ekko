@@ -1,6 +1,7 @@
 {
     "sensor_service": {
         "name": "sensor_service",
+        "enabled": true,
         "port": "/dev/ttyUSB0",
         "baud": 115200,
         "sensor_triggers": {
@@ -8,10 +9,11 @@
                 "proximity": 200
             }
         },
-        "proximity_duration": 10,
+        "proximity_duration": 1,
         "sensor_update_rate": 0.1
     },
     "bt_service": {
-        "name": "bt_service"
+        "name": "bt_service",
+        "enabled": true
     }
 }

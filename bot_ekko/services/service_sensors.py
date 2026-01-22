@@ -11,19 +11,20 @@ from bot_ekko.core.command_center import CommandCenter
 from bot_ekko.core.interrupts import InterruptHandler
 from bot_ekko.core.models import ServiceSensorConfig
 from typing import Dict, Union
+from bot_ekko.core.logger import get_logger
 
 
 class SensorTriggers:
     def __init__(self, sensor_triggers: Dict[str, Union[str, Dict[str, int]]]) -> None:
         self.triggers = sensor_triggers
+        self.logger = get_logger("SensorTriggers")
 
     def check_proximity(self, sensor_data: SensorData):
         if "TOF" not in self.triggers:
-            # self.logger.warning("TOF triggers not configured, proximity check will always return fail.")
+            self.logger.warning("TOF triggers not configured, proximity check will always return fail.")
             return False
         
         if not sensor_data.tof.status == "ok":
-            # self.logger.warning("TOF sensor not reporting ok status, proximity check will always return fail.")
             return False
         
         if sensor_data.tof.mm < self.triggers["TOF"]["proximity"]:
@@ -33,7 +34,7 @@ class SensorTriggers:
 
 class SensorService(ThreadedService):
     def __init__(self, command_center: CommandCenter, service_sensor_config: ServiceSensorConfig, interrupt_handler: InterruptHandler) -> None:
-        super().__init__(service_sensor_config.name)
+        super().__init__(service_sensor_config.name, enabled=service_sensor_config.enabled)
         
         self.port = service_sensor_config.port
         self.baud = service_sensor_config.baud

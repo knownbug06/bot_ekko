@@ -12,6 +12,7 @@ from bot_ekko.services.errors import (
     ServiceRuntimeError,
     ServiceConfigurationError
 )
+from bot_ekko.core.logger import get_logger
 
 class ServiceStatus(Enum):
     NOT_INITIALIZED = "NOT_INITIALIZED"
@@ -25,12 +26,21 @@ class BaseService(ABC):
     Base class for all services.
     Provides basic status tracking and stats capabilities.
     """
-    def __init__(self, name: str):
+    def __init__(self, name: str, enabled: bool = False):
         self.service_name = name
-        self.logger = logging.getLogger(f"service.{name}")
+        self.logger = get_logger(f"service.{name}")
         self._status = ServiceStatus.NOT_INITIALIZED
         self._stats: Dict[str, Any] = {}
         self._service_initialized = False
+        self._enabled = enabled
+    
+    @property
+    def enabled(self) -> bool:
+        return self._enabled
+    
+    @enabled.setter
+    def enabled(self, value: bool):
+        self._enabled = value
 
     @property
     def status(self) -> ServiceStatus:
@@ -101,8 +111,8 @@ class ThreadedService(BaseService, threading.Thread):
     """
     Service that runs in its own thread.
     """
-    def __init__(self, name: str, daemon: bool = True):
-        BaseService.__init__(self, name)
+    def __init__(self, name: str, enabled: bool = False, daemon: bool = True):
+        BaseService.__init__(self, name, enabled=enabled)
         threading.Thread.__init__(self, name=name, daemon=daemon)
         self._stop_event = threading.Event()
 
@@ -113,13 +123,12 @@ class ThreadedService(BaseService, threading.Thread):
         """Start the service thread."""
         if not self._service_initialized:
             try:
-                print("Initializing service...")
                 self.init()
             except Exception as e:
                 self.logger.error(f"Failed to auto-initialize service: {e}")
-            except Exception as e:
-                self.logger.error(f"Failed to auto-initialize service: {e}")
-                raise ServiceInitializationError(f"Failed to auto-initialize: {e}", self.name) from e
+                self.set_status(ServiceStatus.ERROR)
+                # propogate exception
+                raise e
         else:
             self.logger.info("Service already initialized")
 
