@@ -29,7 +29,6 @@ from bot_ekko.modules.sensor_fusion.sensor_data_reader import ReadSensorSerialDa
 from bot_ekko.modules.sensor_fusion.sensor_triggers import SensorDataTriggers
 from bot_ekko.modules.comms.comms_bluetooth import BluetoothManager
 from bot_ekko.vision.gesture_detection.gesture_triggers import GestureDetection
-from bot_ekko.modules.system_logs import SystemMonitor
 from bot_ekko.apis.adapters.tenor_api import TenorAPI
 from bot_ekko.apis.adapters.chat_api import ChatAPI
 from bot_ekko.sys_config import SCREEN_ROTATION, SERVER_CONFIG
@@ -81,13 +80,8 @@ def main():
 
     
 
-    # System Monitor
-    system_monitor = None
-    if SYSTEM_MONITORING_ENABLED:
-        system_monitor = SystemMonitor()
-        system_monitor.start()
-
-
+    
+    
     signal.signal(signal.SIGTERM, handle_sigterm)
 
     try:
@@ -133,8 +127,7 @@ def main():
         logger.info("Cleaning up resources...")
         # sensor_reader.stop()
         # bluetooth_manager.stop()
-        if system_monitor:
-            system_monitor.stop()
+        # bluetooth_manager.stop()
         if gif_api:
             gif_api.stop()
         if chat_api:

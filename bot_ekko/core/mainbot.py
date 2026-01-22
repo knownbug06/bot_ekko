@@ -1,7 +1,7 @@
 import queue
 
 from bot_ekko.core.command_center import Command, CommandCenter
-from bot_ekko.services import SensorService, BluetoothService, GestureService
+from bot_ekko.services import SensorService, BluetoothService, GestureService, SystemLogsService
 from bot_ekko.core.models import ServicesConfig
 
 
@@ -23,6 +23,7 @@ class MainBotServicesManager:
         # services
         self.service_sensor = None
         self.service_bt = None
+        self.service_system_logs = None
         self.state_handler = state_handler
 
         self.command_center = CommandCenter(self.command_queue, self.state_handler)
@@ -46,10 +47,15 @@ class MainBotServicesManager:
             service_gesture_config=services_config.gesture_service
         )
 
+        self.service_system_logs = SystemLogsService(
+            service_config=services_config.system_logs_service
+        )
+
         # add services to the dictionary
         self.all_services.append(self.service_sensor)
         self.all_services.append(self.service_bt)
         self.all_services.append(self.service_gesture)
+        self.all_services.append(self.service_system_logs)
         
         # add enabled services to the list
         self.enabled_services = [i for i in self.all_services if i.enabled]

@@ -92,10 +92,18 @@ class ServiceGestureConfig(BaseModel):
     gesture_state_mapping: Optional[Dict[str, str]] = {}
 
 
+class ServiceSystemLogsConfig(BaseModel):
+    name: str
+    enabled: bool = False
+    sample_rate: float = 10.0
+    log_file: Optional[str] = None
+
+
 class ServicesConfig(BaseModel):
     sensor_service: ServiceSensorConfig
     bt_service: ServiceBluetoothConfig
     gesture_service: ServiceGestureConfig
+    system_logs_service: Optional[ServiceSystemLogsConfig]
 
 
 

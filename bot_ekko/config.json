@@ -27,5 +27,10 @@
             "closed_fist": "ACTIVE",
             "victory": "UWU"
         }
+    },
+    "system_logs_service": {
+        "name": "system_logs",
+        "enabled": true,
+        "sample_rate": 10.0
     }
 }

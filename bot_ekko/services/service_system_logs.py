@@ -1,42 +1,49 @@
-import threading
-import time
 import json
 import subprocess
-import os
+import time
 from datetime import datetime
-from bot_ekko.core.logger import get_logger
-from bot_ekko.sys_config import SYSTEM_LOG_FILE, SYSTEM_SAMPLE_RATE
+from typing import Optional
 
-logger = get_logger("SystemMonitor")
+from bot_ekko.core.base import ThreadedService, ServiceStatus
+from bot_ekko.core.models import ServiceSystemLogsConfig
+from bot_ekko.sys_config import SYSTEM_LOG_FILE as DEFAULT_LOG_FILE
 
-class SystemMonitor(threading.Thread):
-    def __init__(self):
-        super().__init__(daemon=True)
-        self.running = True
-        self.log_file = SYSTEM_LOG_FILE
-        self.sample_rate = SYSTEM_SAMPLE_RATE
+class SystemLogsService(ThreadedService):
+    def __init__(self, service_config: ServiceSystemLogsConfig) -> None:
+        super().__init__(service_config.name, enabled=service_config.enabled)
+        self.config = service_config
+        self.sample_rate = service_config.sample_rate
+        self.log_file = service_config.log_file or DEFAULT_LOG_FILE
         
         # CPU Usage Calculation State
         self.prev_idle = 0
         self.prev_total = 0
-        
-        # Ensure log file exists or creates it (append mode will handle it)
-        logger.info(f"System Monitor initialized. Logging to {self.log_file}")
 
-    def run(self):
-        logger.info("System Monitor started.")
-        while self.running:
+    def init(self) -> None:
+        self.logger.info(f"System Logs Service initialized. Logging to {self.log_file}")
+        super().init()
+
+    def _run(self) -> None:
+        self.logger.info("System Logs Service Loop Started")
+        
+        while not self._stop_event.is_set():
             try:
                 stats = self._collect_stats()
                 self._log_stats(stats)
+                
+                # Update service stats
+                self.update_stat("last_update", datetime.now().isoformat())
+                self.update_stat("cpu_temp", stats.get("cpu_temp"))
+                self.update_stat("cpu_usage", stats.get("cpu_usage"))
+                
+                self._stop_event.wait(self.sample_rate)
+                
             except Exception as e:
-                logger.error(f"Error in SystemMonitor loop: {e}")
-            
-            time.sleep(self.sample_rate)
-
-    def stop(self):
-        self.running = False
-        logger.info("System Monitor stopped.")
+                self.logger.error(f"Error in SystemLogsService loop: {e}")
+                self.increment_stat("errors")
+                self.update_stat("last_error", str(e))
+                # Avoid tight loop in case of persistent error
+                time.sleep(1)
 
     def _collect_stats(self):
         """Collects current system metrics."""
@@ -57,7 +64,8 @@ class SystemMonitor(threading.Thread):
                 json.dump(stats, f)
                 f.write('\n')
         except Exception as e:
-            logger.error(f"Failed to write system logs: {e}")
+            self.logger.error(f"Failed to write system logs: {e}")
+            self.increment_stat("write_errors")
 
     def _get_cpu_temp(self):
         try:
@@ -87,13 +95,6 @@ class SystemMonitor(threading.Thread):
     def _get_throttled_status(self):
         """
         Returns raw hex string from vcgencmd get_throttled.
-        0x0: No throttling
-        Bit 0: Under-voltage detected
-        Bit 1: Arm frequency capped
-        Bit 2: Currently throttled
-        Bit 16: Under-voltage has occurred
-        Bit 17: Arm frequency capped has occurred
-        Bit 18: Throttling has occurred
         """
         try:
             output = subprocess.check_output(["vcgencmd", "get_throttled"]).decode().strip()
@@ -118,7 +119,6 @@ class SystemMonitor(threading.Thread):
             
             parts = line.split()
             # parts[0] is 'cpu'
-            # parts[1] user, [2] nice, [3] system, [4] idle, [5] iowait, ...
             
             user = int(parts[1])
             nice = int(parts[2])
@@ -146,3 +146,9 @@ class SystemMonitor(threading.Thread):
             
         except Exception:
             return 0.0
+
+    def update(self) -> None:
+        pass
+
+    def stop(self) -> None:
+        super().stop()
