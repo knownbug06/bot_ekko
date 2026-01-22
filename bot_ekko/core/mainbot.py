@@ -19,12 +19,13 @@ class MainBotServicesManager:
 
     def __init__(self, command_queue: queue.Queue[Command], interrupt_handler: InterruptHandler, state_handler: StateHandler):
         self.command_queue = command_queue
-        
+
         # services
         self.service_sensor = None
         self.service_bt = None
         self.service_system_logs = None
         self.state_handler = state_handler
+        self.service_gesture = None
 
         self.command_center = CommandCenter(self.command_queue, self.state_handler)
         self.interrupt_handler = interrupt_handler
@@ -77,7 +78,9 @@ class MainBotServicesManager:
     
     def stop_services(self):
         for service in self.enabled_services:
-            service.stop()
+            if service.status == ServiceStatus.RUNNING:
+                logger.info(f"Stopping service: {service.name}...")
+                service.stop()
     
     def service_loop_update(self):
         for service in self.enabled_services:

@@ -14,7 +14,7 @@ class SystemLogsService(ThreadedService):
         self.config = service_config
         self.sample_rate = service_config.sample_rate
         self.log_file = service_config.log_file or DEFAULT_LOG_FILE
-        
+
         # CPU Usage Calculation State
         self.prev_idle = 0
         self.prev_total = 0
@@ -25,19 +25,19 @@ class SystemLogsService(ThreadedService):
 
     def _run(self) -> None:
         self.logger.info("System Logs Service Loop Started")
-        
+
         while not self._stop_event.is_set():
             try:
                 stats = self._collect_stats()
                 self._log_stats(stats)
-                
+
                 # Update service stats
                 self.update_stat("last_update", datetime.now().isoformat())
                 self.update_stat("cpu_temp", stats.get("cpu_temp"))
                 self.update_stat("cpu_usage", stats.get("cpu_usage"))
-                
+
                 self._stop_event.wait(self.sample_rate)
-                
+
             except Exception as e:
                 self.logger.error(f"Error in SystemLogsService loop: {e}")
                 self.increment_stat("errors")
@@ -116,7 +116,7 @@ class SystemLogsService(ThreadedService):
         try:
             with open("/proc/stat", "r") as f:
                 line = f.readline()
-            
+
             parts = line.split()
             # parts[0] is 'cpu'
             
@@ -146,9 +146,3 @@ class SystemLogsService(ThreadedService):
             
         except Exception:
             return 0.0
-
-    def update(self) -> None:
-        pass
-
-    def stop(self) -> None:
-        super().stop()
