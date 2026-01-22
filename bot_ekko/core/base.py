@@ -59,7 +59,7 @@ class BaseService(ABC):
     def set_status(self, status: ServiceStatus) -> None:
         """Update service status."""
         self._status = status
-        self.logger.info(f"Service status changed to: {status.value}")
+        self.logger.info(f"Service: {self.service_name} status changed to: {status.value}")
 
     def init(self) -> None:
         """
@@ -70,7 +70,7 @@ class BaseService(ABC):
         """
         self._service_initialized = True
         self._status = ServiceStatus.INITIALIZED
-        self.logger.info("Service initialized")
+        self.logger.info(f"Service: {self.service_name} initialized")
 
     @abstractmethod
     def start(self) -> None:
@@ -135,7 +135,7 @@ class ThreadedService(BaseService, threading.Thread):
 
     def stop(self) -> None:
         """Signal the service to stop."""
-        self.logger.info("Stopping service...")
+        self.set_status(ServiceStatus.STOPPED)
         self._stop_event.set()
         # Wait for thread to finish if needed, or let the caller join()
 
@@ -147,14 +147,8 @@ class ThreadedService(BaseService, threading.Thread):
         except Exception as e:
             self.logger.error(f"Service crashed: {e}", exc_info=True)
             self.set_status(ServiceStatus.ERROR)
-        except Exception as e:
-            self.logger.error(f"Service crashed: {e}", exc_info=True)
-            self.set_status(ServiceStatus.ERROR)
             self.update_stat("last_error", str(e))
             # We don't re-raise here typically as it's a separate thread
-
-        else:
-            self.set_status(ServiceStatus.STOPPED)
 
     @abstractmethod
     def _run(self) -> None:
