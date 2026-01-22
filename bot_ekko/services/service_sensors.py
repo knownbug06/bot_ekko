@@ -3,10 +3,9 @@ import serial
 import time
 from typing import Optional
 
-from bot_ekko.services.base import ThreadedService, ServiceStatus
-from bot_ekko.services.errors import SensorConnectionError, ServiceInitializationError
+from bot_ekko.core.base import ThreadedService, ServiceStatus
+from bot_ekko.core.errors import SensorConnectionError
 from bot_ekko.core.models import SensorData, TOFSensorData, IMUSensorData
-from bot_ekko.sys_config import SENSOR_UPDATE_RATE
 from bot_ekko.core.command_center import CommandCenter
 from bot_ekko.core.interrupts import InterruptHandler
 from bot_ekko.core.models import ServiceSensorConfig

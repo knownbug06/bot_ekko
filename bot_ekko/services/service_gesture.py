@@ -3,9 +3,8 @@ import socket
 import struct
 import os
 import time
-from typing import Optional, Dict
 
-from bot_ekko.services.base import ThreadedService, ServiceStatus
+from bot_ekko.core.base import ThreadedService, ServiceStatus
 from bot_ekko.core.models import GestureData, CommandNames, ServiceGestureConfig
 from bot_ekko.core.command_center import CommandCenter
 

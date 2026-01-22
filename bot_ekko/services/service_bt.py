@@ -1,10 +1,9 @@
 import subprocess
-import logging
 from typing import Optional, List
 from bluezero import peripheral
 
-from bot_ekko.services.base import ThreadedService
-from bot_ekko.services.errors import ServiceDependencyError
+from bot_ekko.core.base import ThreadedService
+from bot_ekko.core.errors import ServiceDependencyError
 from bot_ekko.core.models import BluetoothData, ServiceBluetoothConfig, CommandNames
 from bot_ekko.core.command_center import CommandCenter
 

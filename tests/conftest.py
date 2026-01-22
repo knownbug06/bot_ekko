@@ -1,13 +1,12 @@
 import pytest
 import time
-import threading
 import sys
 import os
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from bot_ekko.services.base import Service, ThreadedService
+from bot_ekko.core.base import Service, ThreadedService
 
 class MockService(Service):
     def start(self) -> None:

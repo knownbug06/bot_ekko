@@ -1,4 +1,4 @@
-from bot_ekko.services.base import ServiceStatus, ThreadedService
+from bot_ekko.core.base import ServiceStatus, ThreadedService
 import time
 
 class TestService:

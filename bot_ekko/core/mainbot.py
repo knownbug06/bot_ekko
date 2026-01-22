@@ -1,5 +1,4 @@
 import queue
-from typing import Dict
 
 from bot_ekko.core.command_center import Command, CommandCenter
 from bot_ekko.services import SensorService, BluetoothService, GestureService
@@ -9,7 +8,9 @@ from bot_ekko.core.models import ServicesConfig
 from bot_ekko.core.interrupts import InterruptHandler
 from bot_ekko.core.state_machine import StateHandler
 from bot_ekko.core.logger import get_logger
-from bot_ekko.services.errors import SensorConnectionError
+from bot_ekko.core.errors import SensorConnectionError
+from bot_ekko.core.base import ServiceStatus
+
 
 logger = get_logger("MainBotServicesManager")
 
@@ -74,8 +75,8 @@ class MainBotServicesManager:
     
     def service_loop_update(self):
         for service in self.enabled_services:
-            service.update()
+            if service.status == ServiceStatus.RUNNING:
+                service.update()
+            else:
+                logger.warning(f"Service {service.name} is not running, will not update. status: {service.status}")
         
-
-
-

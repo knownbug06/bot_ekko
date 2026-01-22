@@ -1,7 +1,6 @@
 import unittest
 import time
-import multiprocessing
-from bot_ekko.services.base import ProcessService, ServiceStatus
+from bot_ekko.core.base import ProcessService, ServiceStatus
 
 class DummyProcessService(ProcessService):
     def _run(self) -> None:

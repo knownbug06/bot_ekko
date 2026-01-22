@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from bot_ekko.services.service_bt import BluetoothService
-from bot_ekko.services.errors import ServiceDependencyError
+from bot_ekko.core.errors import ServiceDependencyError
 from bot_ekko.core.models import BluetoothData
 
 @pytest.fixture

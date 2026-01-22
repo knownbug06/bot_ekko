@@ -1,7 +1,7 @@
 import time
 import sys
 import logging
-from bot_ekko.services.base import Service, ThreadedService, ServiceStatus
+from bot_ekko.core.base import Service, ThreadedService, ServiceStatus
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
