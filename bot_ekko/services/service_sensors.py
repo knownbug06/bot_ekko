@@ -38,6 +38,7 @@ class SensorService(ThreadedService):
         self.port = service_sensor_config.port
         self.baud = service_sensor_config.baud
         self.ser: Optional[serial.Serial] = None
+        self.service_sensor_config = service_sensor_config
 
         self.command_center = command_center
         self.interrupt_handler = interrupt_handler
@@ -49,9 +50,11 @@ class SensorService(ThreadedService):
             tof=TOFSensorData(mm=0, status="NA"),
             imu=IMUSensorData(ax=0, ay=0, az=0, status="NA")
         )
+        # self.init()
 
     def init(self) -> None:
         """Initialize serial connection."""
+        self.logger.info(f"Initializing serial connection to {self.port} at {self.baud} baud.")
         try:
             self.ser = serial.Serial(self.port, self.baud, timeout=1)
             self.ser.setDTR(True) # Toggle DTR to wake up the ESP32
@@ -142,12 +145,13 @@ class SensorService(ThreadedService):
                 self.logger.error(f"Error closing serial port: {e}")
     
     def update(self) -> None:
-        is_proximity_triggered = self.sensor_triggers.check_proximity(self.sensor_data)
+        is_proximity_triggered = self.sensor_triggers.check_proximity(self.get_sensor_data())
+        # print(self.get_sensor_data().tof.mm)
         if is_proximity_triggered:
             self.interrupt_handler.set_interrupt(
                 name="proximity",
                 duration=self.service_sensor_config.proximity_duration,
-                target_state="proximity",
+                target_state="ANGRY",
                 priority=10,
                 params={}
             )

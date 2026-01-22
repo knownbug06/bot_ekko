@@ -36,7 +36,12 @@ class InterruptHandler:
             start_time=current_time,
             params=params or {}
         )
-        
+        if name in self.active_interrupts:
+            existing = self.active_interrupts[name]
+            if current_time - existing.start_time <= existing.duration:
+                logger.info(f"Interrupt '{name}' is already active. Skipping overwrite.")
+                return
+
         self.active_interrupts[name] = item
         logger.info(f"Set interrupt '{name}': {item}")
         self._evaluate_state()

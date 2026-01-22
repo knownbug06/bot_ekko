@@ -34,6 +34,8 @@ from bot_ekko.apis.adapters.chat_api import ChatAPI
 from bot_ekko.sys_config import SCREEN_ROTATION, SERVER_CONFIG
 
 from bot_ekko.core.mainbot import MainBotServicesManager
+from bot_ekko.core.models import ServicesConfig
+from bot_ekko.core.interrupts import InterruptHandler
 
 
 logger = get_logger("Main")
@@ -54,6 +56,8 @@ def main():
     # 1. Thread-safe command queue
     cmd_queue: queue.Queue[Command] = queue.Queue()
 
+    services_config = ServicesConfig.from_json_file("bot_ekko/config.json")
+
     # 2. Initialize Architecture
     state_machine = StateMachine()
     eyes = Eyes(state_machine)
@@ -62,8 +66,11 @@ def main():
     interrupt_manager = InterruptManager(state_handler, command_center)
     state_renderer = StateRenderer(eyes, state_handler, command_center, interrupt_manager)
 
-    mainbot = MainBotServicesManager(command_center, state_renderer, interrupt_manager)
-    mainbot.init_services()
+    interrupt_handler = InterruptHandler(command_center, state_handler)
+
+    mainbot = MainBotServicesManager(cmd_queue, interrupt_handler, state_handler)
+    # breakpoint()
+    mainbot.init_services(services_config)
     mainbot.start_services()
     
     
@@ -110,9 +117,12 @@ def main():
                     except queue.Empty:
                         pass
 
+                mainbot.service_loop_update()
+                interrupt_handler.update()
+                # print('yep')
+
                 eyes.apply_physics()
 
-                mainbot.service_loop_update()
 
                 # sensor_data = sensor_reader.get_sensor_data()
                 # bluetooth_data = bluetooth_manager.get_bt_data()

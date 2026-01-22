@@ -9,7 +9,7 @@ from bot_ekko.core.models import BluetoothData, ServiceBluetoothConfig, CommandN
 from bot_ekko.core.command_center import CommandCenter
 
 class BluetoothService(ThreadedService):
-    def __init__(self, name: str = "bluetooth", service_bt_config: ServiceBluetoothConfig, command_center: CommandCenter):
+    def __init__(self, service_bt_config: ServiceBluetoothConfig, command_center: CommandCenter, name: str = "bluetooth"):
         super().__init__(name)
         self.adapter_address: Optional[str] = None
         self.peripheral: Optional[peripheral.Peripheral] = None
@@ -114,7 +114,7 @@ class BluetoothService(ThreadedService):
     
     def update(self):
         data = self.get_bt_data()
-        if data.is_connected:
+        if data and data.is_connected:
             cmd, query, *_ = data.text.split(";") + [None, None]
             cmd = cmd.upper()
             if cmd == "STATE":

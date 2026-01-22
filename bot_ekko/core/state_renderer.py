@@ -58,7 +58,7 @@ class StateRenderer:
         """
         self._check_schedule(now)
     
-        current_state = self.state_handler.get_state()
+        current_state = self.state_handler.get_state().upper()
         handler_name = f"handle_{current_state}"
         handler = getattr(self, handler_name, None)
         if handler:

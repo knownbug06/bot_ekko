@@ -14,6 +14,7 @@ from bot_ekko.services.errors import (
 )
 
 class ServiceStatus(Enum):
+    NOT_INITIALIZED = "NOT_INITIALIZED"
     INITIALIZED = "INITIALIZED"
     RUNNING = "RUNNING"
     STOPPED = "STOPPED"
@@ -25,11 +26,11 @@ class BaseService(ABC):
     Provides basic status tracking and stats capabilities.
     """
     def __init__(self, name: str):
-        self.name = name
+        self.service_name = name
         self.logger = logging.getLogger(f"service.{name}")
-        self._status = ServiceStatus.INITIALIZED
+        self._status = ServiceStatus.NOT_INITIALIZED
         self._stats: Dict[str, Any] = {}
-        self._initialized = False
+        self._service_initialized = False
 
     @property
     def status(self) -> ServiceStatus:
@@ -63,7 +64,8 @@ class BaseService(ABC):
         Subclasses should allow this to be called multiple times if needed, 
         or check self._initialized.
         """
-        self._initialized = True
+        self._service_initialized = True
+        self._status = ServiceStatus.INITIALIZED
         self.logger.info("Service initialized")
 
     @abstractmethod
@@ -88,7 +90,7 @@ class Service(BaseService):
     Useful for synchronous tasks or services managed externally.
     """
     def start(self) -> None:
-        if not self._initialized:
+        if not self._service_initialized:
             self.init()
         self.set_status(ServiceStatus.RUNNING)
 
@@ -100,8 +102,8 @@ class ThreadedService(BaseService, threading.Thread):
     Service that runs in its own thread.
     """
     def __init__(self, name: str, daemon: bool = True):
-        threading.Thread.__init__(self, name=name, daemon=daemon)
         BaseService.__init__(self, name)
+        threading.Thread.__init__(self, name=name, daemon=daemon)
         self._stop_event = threading.Event()
 
     def init(self) -> None:
@@ -109,14 +111,17 @@ class ThreadedService(BaseService, threading.Thread):
 
     def start(self) -> None:
         """Start the service thread."""
-        if not self._initialized:
+        if not self._service_initialized:
             try:
+                print("Initializing service...")
                 self.init()
             except Exception as e:
                 self.logger.error(f"Failed to auto-initialize service: {e}")
             except Exception as e:
                 self.logger.error(f"Failed to auto-initialize service: {e}")
                 raise ServiceInitializationError(f"Failed to auto-initialize: {e}", self.name) from e
+        else:
+            self.logger.info("Service already initialized")
 
         if self._status == ServiceStatus.RUNNING:
             self.logger.warning("Service is already running")
@@ -162,8 +167,8 @@ class ProcessService(BaseService, multiprocessing.Process):
     Service that runs in its own process.
     """
     def __init__(self, name: str, daemon: bool = True):
-        multiprocessing.Process.__init__(self, name=name, daemon=daemon)
         BaseService.__init__(self, name)
+        multiprocessing.Process.__init__(self, name=name, daemon=daemon)
         self._stop_event = multiprocessing.Event()
 
     @property

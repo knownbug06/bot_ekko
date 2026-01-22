@@ -8,6 +8,10 @@ from enum import Enum
 from typing import Dict, Any, Union
 import json
 
+from bot_ekko.core.logger import get_logger
+
+logger = get_logger("Models")
+
 
 class TOFSensorData(BaseModel):
     mm: int
@@ -56,7 +60,7 @@ class BluetoothData(BaseModel):
 
 class ServiceSensorConfig(BaseModel):
     name: str
-    baudrate: int
+    baud: int
     port: str
 
     sensor_triggers: Dict[str, Union[str, Dict[str, int]]]
@@ -78,8 +82,11 @@ class ServicesConfig(BaseModel):
         return cls(**data)
 
     @classmethod
-    def from_json(cls, data: str):
-        return cls(**json.loads(data))
+    def from_json_file(cls, file_path: str):
+        with open(file_path, "r") as f:
+            data = json.load(f)
+        logger.info(f"Loaded services config from {file_path}")
+        return cls(**data)
 
     def to_dict(self) -> Dict[str, Any]:
         return self.dict()
