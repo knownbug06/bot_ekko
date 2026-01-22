@@ -28,6 +28,7 @@ from bot_ekko.modules.media_interface import MediaModule
 from bot_ekko.modules.sensor_fusion.sensor_data_reader import ReadSensorSerialData
 from bot_ekko.modules.sensor_fusion.sensor_triggers import SensorDataTriggers
 from bot_ekko.modules.comms.comms_bluetooth import BluetoothManager
+from bot_ekko.vision.gesture_detection.gesture_triggers import GestureDetection
 from bot_ekko.modules.system_logs import SystemMonitor
 from bot_ekko.apis.adapters.tenor_api import TenorAPI
 from bot_ekko.apis.adapters.chat_api import ChatAPI
@@ -72,27 +73,31 @@ def main():
     # breakpoint()
     mainbot.init_services(services_config)
     mainbot.start_services()
+
     
-    
-    
+
     # sensor reader
     # sensor_reader = ReadSensorSerialData(cmd_queue)
     # sensor_reader.start()
     
     
     # API Adapters
-    # TENOR_API_KEY = os.getenv("TENOR_API_KEY") 
+    # TENOR_API_KEY = os.getenv("TENOR_API_KEY")
     # gif_api = TenorAPI(command_center, TENOR_API_KEY)
     
     # chat_api = ChatAPI(command_center, SERVER_CONFIG["url"])
 
     # sensor_data_triggers = SensorDataTriggers()
-    # event_manager = EventManager(sensor_data_triggers, command_center, state_renderer, state_handler, interrupt_manager, gif_api, chat_api)    
+    # event_manager = EventManager(sensor_data_triggers, command_center, state_renderer, state_handler, interrupt_manager, gif_api, chat_api)
     
 
     # bluetooth manager
     # bluetooth_manager = BluetoothManager()
     # bluetooth_manager.start()
+
+    # Gesture Detection
+    gesture_manager = GestureDetection(command_center)
+    gesture_manager.start()
 
     # System Monitor
     system_monitor = None
@@ -162,6 +167,8 @@ def main():
             gif_api.stop()
         if chat_api:
             chat_api.stop()
+        if gesture_manager:
+            gesture_manager.stop()
         pygame.quit()
         sys.exit()
 
