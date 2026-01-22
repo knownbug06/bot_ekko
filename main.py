@@ -28,6 +28,7 @@ from bot_ekko.modules.media_interface import MediaModule
 from bot_ekko.modules.sensor_fusion.sensor_data_reader import ReadSensorSerialData
 from bot_ekko.modules.sensor_fusion.sensor_triggers import SensorDataTriggers
 from bot_ekko.modules.comms.comms_bluetooth import BluetoothManager
+from bot_ekko.vision.gesture_detection.gesture_triggers import GestureDetection
 from bot_ekko.modules.system_logs import SystemMonitor
 from bot_ekko.apis.adapters.tenor_api import TenorAPI
 from bot_ekko.apis.adapters.chat_api import ChatAPI
@@ -80,6 +81,10 @@ def main():
     bluetooth_manager = BluetoothManager()
     bluetooth_manager.start()
 
+    # Gesture Detection
+    gesture_manager = GestureDetection(command_center)
+    gesture_manager.start()
+
     # System Monitor
     system_monitor = None
     if SYSTEM_MONITORING_ENABLED:
@@ -107,9 +112,11 @@ def main():
 
                 sensor_data = sensor_reader.get_sensor_data()
                 bluetooth_data = bluetooth_manager.get_bt_data()
+                # gesture_data handled internally by GestureDetection -> CommandCenter
 
                 logger.debug(f"TOF Distance: {sensor_data.tof.mm}")
                 logger.debug(f"Bluetooth Data: {bluetooth_data}")
+                
 
                 event_manager.update_sensor_events(sensor_data)
                 event_manager.update_bt_events(bluetooth_data)
@@ -144,6 +151,8 @@ def main():
             gif_api.stop()
         if chat_api:
             chat_api.stop()
+        if gesture_manager:
+            gesture_manager.stop()
         pygame.quit()
         sys.exit()
 
