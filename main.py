@@ -41,12 +41,6 @@ def main():
 
     # 1. Thread-safe command queue
     cmd_queue: queue.Queue[Command] = queue.Queue()
-
-    gif_api = None
-    chat_api = None
-    gesture_manager = None
-
-
     services_config = ServicesConfig.from_json_file("bot_ekko/config.json")
 
     # 2. Initialize Architecture

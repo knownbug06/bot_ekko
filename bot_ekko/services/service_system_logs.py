@@ -2,11 +2,11 @@ import json
 import subprocess
 import time
 from datetime import datetime
-from typing import Optional
 
 from bot_ekko.core.base import ThreadedService, ServiceStatus
 from bot_ekko.core.models import ServiceSystemLogsConfig
 from bot_ekko.sys_config import SYSTEM_LOG_FILE as DEFAULT_LOG_FILE
+
 
 class SystemLogsService(ThreadedService):
     def __init__(self, service_config: ServiceSystemLogsConfig) -> None:
@@ -88,7 +88,7 @@ class SystemLogsService(ThreadedService):
             # Output: "frequency(43)=500000000" (Hz)
             output = subprocess.check_output(["vcgencmd", "measure_clock", "v3d"]).decode().strip()
             clock_hz = int(output.split("=")[1])
-            return round(clock_hz / 1_000_000, 1) # Convert to MHz
+            return round(clock_hz / 1_000_000, 1)  # Convert to MHz
         except Exception:
             return 0.0
 
@@ -119,7 +119,7 @@ class SystemLogsService(ThreadedService):
 
             parts = line.split()
             # parts[0] is 'cpu'
-            
+
             user = int(parts[1])
             nice = int(parts[2])
             system = int(parts[3])
@@ -128,21 +128,27 @@ class SystemLogsService(ThreadedService):
             irq = int(parts[6])
             softirq = int(parts[7])
             steal = int(parts[8])
-            
+
             total = user + nice + system + idle + iowait + irq + softirq + steal
-            
+
             # Use deltas
             delta_total = total - self.prev_total
             delta_idle = idle - self.prev_idle
-            
+
             self.prev_total = total
             self.prev_idle = idle
-            
+
             if delta_total == 0:
                 return 0.0
-                
+
             usage = 1.0 - (delta_idle / delta_total)
             return round(usage * 100, 1)
-            
+
         except Exception:
             return 0.0
+
+    def update(self) -> None:
+        pass
+
+    def stop(self) -> None:
+        super().stop()
