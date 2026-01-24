@@ -2,7 +2,7 @@
   {
     "name": "Sleep Schedule",
     "type": "daily",
-    "start_time": "22:00",
+    "start_time": "24:00",
     "end_time": "07:00",
     "state": "SLEEPING",
     "priority": 1,

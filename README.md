@@ -4,9 +4,17 @@ Bot Ekko is a Raspberry Pi-based robot with an expressive digital face. It featu
 
 # Gallery
 
-![Bot Ekko](z-readme-assets/img1.png)
-![Bot Ekko](z-readme-assets/img2.jpeg)
-![Bot Ekko](z-readme-assets/img3.jpeg)
+<table>
+  <tr>
+    <td width="50%"><img src="z-readme-assets/img1.jpg" alt="Bot Ekko" style="width:100%"></td>
+    <td width="50%"><img src="z-readme-assets/img2.jpg" alt="Bot Ekko" style="width:100%"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="z-readme-assets/img3.jpg" alt="Bot Ekko" style="width:100%"></td>
+    <td width="50%"><img src="z-readme-assets/img4.jpg" alt="Bot Ekko" style="width:100%"></td>
+  </tr>
+</table>
+
 
 ## Architecture
 
