@@ -82,3 +82,6 @@ SERVER_CONFIG: Dict[str, Any] = {
 
 SENSOR_UPDATE_RATE = 0.1  # seconds
 
+
+GESTURE_DETECTION_IPC_SOCKET_PATH = "/tmp/ekko_ipc.sock"
+GESTURE_DETECTION_MODEL_PATH = os.path.join(BASE_DIR, "gesture_recognizer.task")
