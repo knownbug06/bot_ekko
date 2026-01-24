@@ -1,19 +1,31 @@
 import json
-import logging
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
+
 from bot_ekko.core.logger import get_logger
 
 logger = get_logger("Scheduler")
 
 class Scheduler:
+    """
+    Manages scheduled events and state transitions based on time.
+    """
     def __init__(self, schedule_file: str):
+        """
+        Initialize the Scheduler.
+
+        Args:
+            schedule_file (str): Path to the JSON schedule file.
+        """
         self.schedule_file = schedule_file
-        self.events = []
+        self.events: List[Dict] = []
         self.load_schedule()
 
-    def load_schedule(self):
-        """Loads the schedule from the JSON file."""
+    def load_schedule(self) -> None:
+        """
+        Loads the schedule from the JSON file. 
+        Populates self.events with sorted events by priority.
+        """
         try:
             with open(self.schedule_file, 'r') as f:
                 data = json.load(f)
@@ -33,16 +45,22 @@ class Scheduler:
             logger.error(f"Error parsing schedule file: {e}")
             self.events = []
 
-    def get_target_state(self, now_dt: datetime, current_state: str) -> Optional[tuple[str, Optional[Dict], str, int]]:
+    def get_target_state(self, now_dt: datetime, current_state: str) -> Optional[Tuple[str, Optional[Dict]]]:
         """
         Checks if any scheduled event is active AND if the current state allows interruption.
-        Returns (target_state, params, event_name, priority) if conditions are met, else None.
+        
+        Args:
+            now_dt (datetime): Current datetime.
+            current_state (str): Name of the current state.
+
+        Returns:
+            Optional[Tuple[str, Optional[Dict]]]: (target_state, params) if conditions are met, else None.
         """
         for event in self.events:
             target_state = event.get("state")
             params = event.get("params")
-            name = event.get("name")
-            priority = event.get("priority", 10)
+            # name = event.get("name") # unused
+            # priority = event.get("priority", 10) # unused here as list is sorted
             
             # 1. Check time window
             if not self._is_event_active(event, now_dt):
@@ -56,9 +74,7 @@ class Scheduler:
             # 3. Check if current state is interruptible by this event
             interruptible = set(event.get("interruptible_states", []))
             
-            # Default fallback if not specified? 
-            # If nothing specified, maybe assumes strict? Or assume passive only? 
-            # Let's assume if list is empty/missing, it behaves safely (only interrupts ACTIVE/SLEEPING-ish)
+            # Default fallback: if not specified, assume it can interrupt standard states
             if not interruptible:
                  interruptible = {"ACTIVE", "SQUINTING", "THINKING", "SLEEPING", "WAKING"}
                  
@@ -131,6 +147,4 @@ class Scheduler:
         
         seconds_since_hour = now_dt.minute * 60 + now_dt.second
         return seconds_since_hour < duration
-        # TEMP VERIFICATION logic: every minute
-        # return now_dt.second < duration
 

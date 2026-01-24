@@ -3,22 +3,33 @@ import socket
 import struct
 import os
 import time
+from typing import Optional, Dict
 
 from bot_ekko.core.base import ThreadedService, ServiceStatus
 from bot_ekko.core.models import GestureData, CommandNames, ServiceGestureConfig
 from bot_ekko.core.command_center import CommandCenter
 
 class GestureService(ThreadedService):
+    """
+    Service to handle gesture input via a Unix Domain Socket.
+    Receives JSON payloads from an external gesture recognition process.
+    """
     def __init__(self, command_center: CommandCenter, service_gesture_config: ServiceGestureConfig) -> None:
+        """
+        Initialize the Gesture Service.
+
+        Args:
+            command_center (CommandCenter): Command issuer.
+            service_gesture_config (ServiceGestureConfig): Configuration.
+        """
         super().__init__(service_gesture_config.name, enabled=service_gesture_config.enabled)
 
-        
         self.socket_path = service_gesture_config.socket_path
         self.command_center = command_center
         self.service_config = service_gesture_config
         
-        self.sock = None
-        
+        self.sock: Optional[socket.socket] = None
+
         # Default mapping if not provided in config
         self._gesture_state_mapping = service_gesture_config.gesture_state_mapping
         
@@ -29,7 +40,7 @@ class GestureService(ThreadedService):
             status="NA"
         )
         
-        self._last_processed_gesture = None
+        self._last_processed_gesture: Optional[str] = None
         self._last_processed_time = 0
 
     def init(self) -> None:
@@ -65,7 +76,6 @@ class GestureService(ThreadedService):
 
         self.logger.info("Gesture Service Loop Started")
 
-        
         while not self._stop_event.is_set():
             try:
                 # Accept connection
@@ -77,8 +87,6 @@ class GestureService(ThreadedService):
                     break
                 
                 self.logger.debug("Gesture client connected")
-
-                current_gesture = ""
 
                 with conn:
                     conn.settimeout(1.0) # Timeout for recv
@@ -129,7 +137,17 @@ class GestureService(ThreadedService):
 
                 time.sleep(1)
 
-    def _recv_exact(self, conn, n):
+    def _recv_exact(self, conn: socket.socket, n: int) -> Optional[bytes]:
+        """
+        Reads exactly n bytes from the socket.
+
+        Args:
+            conn (socket.socket): The connection object.
+            n (int): Number of bytes to read.
+
+        Returns:
+            Optional[bytes]: The read bytes, or None if EOF/Timeout/Stop.
+        """
         buf = b""
         while len(buf) < n:
             try:
@@ -144,6 +162,7 @@ class GestureService(ThreadedService):
         return buf
 
     def stop(self) -> None:
+        """Stops the socket service."""
         super().stop()
         if self.sock:
             try:
@@ -153,7 +172,7 @@ class GestureService(ThreadedService):
         if os.path.exists(self.socket_path):
             try:
                 os.unlink(self.socket_path)
-            except Exception:
+            except Exception: # pylint: disable=broad-except
                 pass
     
     def update(self) -> None:
@@ -183,3 +202,4 @@ class GestureService(ThreadedService):
                 CommandNames.CHANGE_STATE, 
                 params={"target_state": target_state, "score": current_data.score}
             )
+

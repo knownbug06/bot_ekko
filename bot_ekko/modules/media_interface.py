@@ -1,27 +1,39 @@
 import threading
 import time
+from typing import Optional, TYPE_CHECKING, List, Tuple, Dict, Any
+
 import pygame
 from PIL import Image, ImageSequence
+
 from bot_ekko.core.logger import get_logger
-from bot_ekko.sys_config import *
-# from bot_ekko.core.interrupt_manager import InterruptManager # Avoid circular import via TYPE_CHECKING
-from typing import Optional, TYPE_CHECKING
+from bot_ekko.sys_config import LOGICAL_W, MAIN_FONT, CANVAS_DURATION, CYAN
+from bot_ekko.core.models import CommandNames
+
 if TYPE_CHECKING:
     from bot_ekko.core.interrupt_manager import InterruptManager
     from bot_ekko.core.command_center import CommandCenter
 
-from bot_ekko.core.models import CommandNames
-
 logger = get_logger("MediaModule")
 
 class MediaModule(threading.Thread):
-    def __init__(self, interrupt_manager, command_center):
+    """
+    Handles playback of visual media (GIFs, Images, Text) on the robot's face.
+    Runs in a background thread to manage timing.
+    """
+    def __init__(self, interrupt_manager: 'InterruptManager', command_center: 'CommandCenter') -> None:
+        """
+        Initialize the Media Module.
+
+        Args:
+            interrupt_manager (InterruptManager): Manager for handling state interrupts.
+            command_center (CommandCenter): For restoring state after media.
+        """
         super().__init__(daemon=True)
         self.interrupt_manager = interrupt_manager
         self.command_center = command_center
-        self.current_media_type = None
-        self.media_end_time = 0
-        self.current_interrupt_name = None
+        self.current_media_type: Optional[str] = None
+        self.media_end_time: float = 0
+        self.current_interrupt_name: Optional[str] = None
         
         # Internal state
         self.is_playing = False
@@ -31,23 +43,30 @@ class MediaModule(threading.Thread):
         self.lock = threading.Lock()
         
         # GIF specific
-        self.gif_frames = []
-        self.gif_delays = []
+        self.gif_frames: List[pygame.Surface] = []
+        self.gif_delays: List[float] = []
         self.current_frame_index = 0
-        self.last_frame_time = 0
+        self.last_frame_time: float = 0
         
         # Image specific
-        self.current_image = None
+        self.current_image: Optional[pygame.Surface] = None
         
         # Text specific
         self.current_text = ""
-        self.text_surface = None
+        self.text_surface: Optional[pygame.Surface] = None
         
-        # Cache
-        self.gif_cache = {}
+        # Cache: path -> (frames, delays)
+        self.gif_cache: Dict[str, Tuple[List[pygame.Surface], List[float]]] = {}
 
-    def _start_media(self, duration=None, save_context=True, interrupt_name=None):
-        """Helper to start media playback and handling state context."""
+    def _start_media(self, duration: Optional[float] = None, save_context: bool = True, interrupt_name: Optional[str] = None) -> None:
+        """
+        Helper to start media playback and handling state context.
+        
+        Args:
+            duration (float, optional): How long to play. Defaults to None.
+            save_context (bool, optional): Whether to save previous state. 
+            interrupt_name (str, optional): Name of the interrupt.
+        """
         # Note: Context saving is now handled by CommandCenter before switching state if requested.
             
         self.current_interrupt_name = interrupt_name
@@ -58,10 +77,19 @@ class MediaModule(threading.Thread):
         else:
             self.media_end_time = 0 # Indefinite or controlled by logic (like GIF loop)
 
-    def play_gif(self, path, duration=None, save_context=True, interrupt_name=None):
+    def play_gif(self, path: str, duration: Optional[float] = None, save_context: bool = True, interrupt_name: Optional[str] = None) -> None:
+        """
+        Plays a GIF.
+        
+        Args:
+            path (str): Path to GIF file.
+            duration (float, optional): Duration to play.
+            save_context (bool, optional): Whether to save state.
+            interrupt_name (str, optional): Interrupt name.
+        """
         try:
-            frames = []
-            delays = []
+            frames: List[pygame.Surface] = []
+            delays: List[float] = []
             
             # Check cache
             if path in self.gif_cache:
@@ -101,7 +129,14 @@ class MediaModule(threading.Thread):
         except Exception as e:
             logger.error(f"Failed to load GIF {path}: {e}")
 
-    def show_image(self, path, duration=5.0, save_context=True, interrupt_name=None):
+    def show_image(self, path: str, duration: float = 5.0, save_context: bool = True, interrupt_name: Optional[str] = None) -> None:
+        """
+        Shows a static image.
+        
+        Args:
+            path (str): Path to image.
+            duration (float, optional): Duration to show. Defaults to 5.0.
+        """
         try:
             image = pygame.image.load(path)
             with self.lock:
@@ -112,11 +147,11 @@ class MediaModule(threading.Thread):
         except Exception as e:
             logger.error(f"Failed to load Image {path}: {e}")
 
-    def _render_wrapped_text(self, text, font, color, max_width):
+    def _render_wrapped_text(self, text: str, font: pygame.font.Font, color: Tuple[int, int, int], max_width: int) -> pygame.Surface:
         """Helper to render text wrapped to a max width."""
         words = text.split(' ')
         lines = []
-        current_line = []
+        current_line: List[str] = []
         
         for word in words:
             test_line = ' '.join(current_line + [word])
@@ -151,16 +186,24 @@ class MediaModule(threading.Thread):
         
         y = 0
         for line_surf in rendered_lines:
-            # Center confirm? Or Left align?
-            # Let's center align each line relative to the widest line for aesthetics
+            # Center align
             x = (max_line_width - line_surf.get_width()) // 2
             surface.blit(line_surf, (x, y))
             y += line_surf.get_height()
             
         return surface
 
-    def show_text(self, text, duration=CANVAS_DURATION, save_context=True, interrupt_name=None, font=None):
-        # Render text wrapped
+    def show_text(self, text: str, duration: float = CANVAS_DURATION, save_context: bool = True, interrupt_name: Optional[str] = None, font: Optional[pygame.font.Font] = None) -> None:
+        """
+        Displays wrapped text.
+        
+        Args:
+            text (str): The text to display.
+            duration (float, optional): Duration to show.
+            save_context (bool, optional): Whether to save previous state.
+            interrupt_name (str, optional): Interrupt name.
+            font (pygame.font.Font, optional): Font to use. Defaults to MAIN_FONT.
+        """
         # LOGICAL_W is 800, let's use 760 for padding
         text = text.capitalize()
         max_width = LOGICAL_W - 40 
@@ -175,7 +218,7 @@ class MediaModule(threading.Thread):
         self._start_media(duration, save_context, interrupt_name)
         logger.info(f"Showing Text for {duration}s")
 
-    def stop_media(self):
+    def stop_media(self) -> None:
         """Stops media and restores state."""
         if self.is_playing:
             self.is_playing = False
@@ -191,7 +234,7 @@ class MediaModule(threading.Thread):
                 self.command_center.issue_command(CommandNames.RESTORE_STATE)
             logger.info("Media stopped.")
 
-    def run(self):
+    def run(self) -> None:
         """Background loop to handle media timing and updates."""
         logger.info("MediaModule thread started")
         while self.running:
@@ -227,10 +270,13 @@ class MediaModule(threading.Thread):
             else:
                  time.sleep(0.1)
 
-    def update(self, surface):
+    def update(self, surface: pygame.Surface) -> None:
         """
         Renders the current media frame to the surface.
         Safe to call from main thread.
+        
+        Args:
+            surface (pygame.Surface): The destination surface.
         """
         if not self.is_playing:
             return
@@ -253,3 +299,4 @@ class MediaModule(threading.Thread):
                 if self.text_surface:
                      rect = self.text_surface.get_rect(center=(surface.get_width() // 2, surface.get_height() // 2))
                      surface.blit(self.text_surface, rect)
+

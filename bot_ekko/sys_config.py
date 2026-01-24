@@ -1,5 +1,12 @@
 import os
+from typing import Tuple, Dict, List, Any
 import pygame
+
+"""
+System Configuration Module
+---------------------------
+Contains all global constants, configuration paths, and state definitions.
+"""
 
 # Dynamic Base Directory
 # sys_config.py is in bot_ekko/ (inner), so go up 2 levels to get to root
@@ -7,24 +14,32 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SCREEN_ROTATION = 0
 
+# Display Settings
 LOGICAL_W, LOGICAL_H = 800, 480
 PHYSICAL_W, PHYSICAL_H = 480, 800
-CYAN = (0, 255, 180)
-RED = (255, 50, 50)
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
 
+# Colors (R, G, B)
+CYAN: Tuple[int, int, int] = (0, 255, 180)
+RED: Tuple[int, int, int] = (255, 50, 50)
+BLACK: Tuple[int, int, int] = (0, 0, 0)
+WHITE: Tuple[int, int, int] = (255, 255, 255)
+
+# Fonts
+# Must be initialized after pygame.init() usually, but here we assume init calls happen before usage
+# or that font module init is sufficient.
 pygame.font.init()
 MAIN_FONT = pygame.font.SysFont("Arial", 40, bold=True)
 CHAT_FONT = pygame.font.SysFont("Arial", 30, bold=False)
 CLOCK_FONT = pygame.font.SysFont("Courier New", 80, bold=True)
 
+# Timings (ms)
 SENSOR_TRIGGER_ENTRY_TIME = 500
 SENSOR_TRIGGER_EXIT_TIME = 3000
 
 
-# STATE DATA: [Base_Height, Gaze_Speed, Radius, Close_Spd, Open_Spd]
-STATES = {
+# STATE DATA: Each state maps to physics parameters for the eyes.
+# Format: [Base_Height, Gaze_Speed, Radius, Close_Spd, Open_Spd]
+STATES: Dict[str, List[float]] = {
     "ACTIVE":     [160, 0.1,  30, 0.5, 0.15], # Was NEUTRAL
     "SQUINTING":  [85,  0.07, 15, 0.4, 0.12], # Was SQUINT
     "SLEEPING":   [8,   0.02, 4,  0.1, 0.1],  # Was SLEEP
@@ -47,11 +62,9 @@ CANVAS_DURATION = 10
 # BLUETOOTH CONFIGURATION
 BLUETOOTH_NAME = "Ekko"
 
+# File Paths
 SCHEDULE_FILE_PATH = os.path.join(BASE_DIR, "schedule.json")
 DEFAULT_GIF_PATH = os.path.join(BASE_DIR, "bot_ekko", "assets", "anime.gif")
-
-# SLEEP_AT and WAKE_AT are now managed by schedule.json
-
 
 # LOGGING CONFIGURATION
 LOG_LEVEL = "INFO"
@@ -62,9 +75,10 @@ SYSTEM_LOG_FILE = os.path.join(BASE_DIR, "system_health.jsonl")
 SYSTEM_SAMPLE_RATE = 10.0 # Seconds
 
 # LLM CONFIGURATION
-SERVER_CONFIG = {
+SERVER_CONFIG: Dict[str, Any] = {
     "url": "http://localhost:8000", 
     "api_key": None
 }
 
 SENSOR_UPDATE_RATE = 0.1  # seconds
+

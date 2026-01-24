@@ -1,90 +1,62 @@
 # Bot Ekko
 
-Bot Ekko is an expressive robot software stack designed to run on embedded Linux systems (like Raspberry Pi). It features procedural eye animation, emotional states, sensor responsiveness, and LLM-powered interactions.
-
-## Visuals
-
-<!-- Add your Screenshots and GIFs here -->
-<div align="center">
-  <img src="path/to/demo.gif" alt="Bot Ekko Demo" width="600">
-</div>
-
-## Key Features
-
-- **Procedural Eye Rendering**: Eyes are drawn elegantly using Pygame, allowing for smooth transitions and infinite variations.
-- **State Machine Architecture**: Robust state management (Active, Sleeping, Waking, Angry, etc.) ensures consistent behavior.
-- **Sensor Fusion**: Reacts to external stimuli (Proximity, Distance tests) via sensor modules.
-- **Media Interface**: Capable of displaying text, images, and smooth GIFs for user interaction.
-- **Chat API**: Integrated local server support for LLM-based chat interactions.
-- **Scheduling**: Automated sleep/wake cycles managed via `schedule.json`.
-- **System Health Monitoring**: Continuous logging of system stats (CPU, RAM, Temp) to `system_health.jsonl`.
-- **Bluetooth Control**: (In Progress) Support for remote control via Bluetooth.
-
-## Installation
-
-### Prerequisites
-- Python 3.11+
-- Pygame
-- Pillow (PIL)
-- Systemd (for service management)
-
-### Setup
-
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/yourusername/bot_ekko.git
-    cd bot_ekko
-    ```
-
-2.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-3.  **Install Systemd Service (Optional):**
-    To run Bot Ekko as a background service:
-    ```bash
-    sudo cp system_services/bot_ekko.service /etc/systemd/system/
-    sudo systemctl daemon-reload
-    sudo systemctl enable bot_ekko.service
-    sudo systemctl start bot_ekko.service
-    ```
-
-## Configuration
-
-The main configuration is split between `bot_ekko/sys_config.py` (variables) and `schedule.json` (timing).
-
-- **`bot_ekko/sys_config.py`**:
-    - `LOGICAL_W`, `LOGICAL_H`: Rendering resolution.
-    - `STATES`: Definitions for eye shapes and physics for each emotional state.
-    - `SERVER_CONFIG`: URL and API key for the local LLM server.
-    - `sytem_monitoring_enabled`: Toggle for health logging.
-
-- **`schedule.json`**:
-    - Defines `SLEEP_AT` and `WAKE_AT` times for automated power management.
-
-## Usage
-
-To start the robot software manually:
-
-```bash
-python3 main.py
-```
+Bot Ekko is a Raspberry Pi-based robot with an expressive digital face. It features an event-driven architecture that manages emotional states, sensor inputs, local communication (Bluetooth), and media playback.
 
 ## Architecture
 
-- **`core/`**: contains the heart of the system.
-    - `state_machine.py`: Manages transitions between emotional states.
-    - `movements.py`: Physics for eye movement nuances.
-    - `display_manager.py`: Abstraction for screen handling.
-    - `scheduler.py`: Handles time-based events.
-- **`modules/`**: contains feature modules.
-    - `media_interface.py`: Handles non-eye visuals (images, gifs).
-    - `sensor_fusion/`: Handles input processing.
-    - `comms/`: Bluetooth communication logic.
-- **`apis/`**:
-    - `adapters/chat_api.py`: Connects to local LLM for chat.
+The project is structured around a central **State Machine** that dictates the robot's behavior (e.g., Happy, Sleeping, Angry). A **Command Center** handles asynchronous commands from various services to modify this state.
+
+### Core Components (`bot_ekko/core/`)
+- **`state_machine.py`**: Manages the robot's current state and history.
+- **`display_manager.py`**: Handles Pygame surface initialization and scaling.
+- **`movements.py`**: Helper class (`Looks`) for preset eye movements.
+- **`eyes.py`**: Handles the math and physics of eye movement and blinking.
+- **`scheduler.py`**: Manages time-based state changes (Daily/Hourly events).
+
+### Services (`bot_ekko/services/`)
+Services run as independent threads or processes.
+- **`service_bt.py`**: Bluetooth Low Energy (BLE) peripheral for smartphone control.
+- **`service_sensors.py`**: interfaces with external hardware (e.g., ESP32) via Serial.
+- **`service_gesture.py`**: Listens for gesture data via Unix Domain Socket.
+- **`service_system_logs.py`**: Monitors CPU/GPU stats.
+
+### Modules (`bot_ekko/modules/`)
+- **`media_interface.py`**: Handles rendering of GIFs, Images, and Text overlays.
+- **`effects.py`**: Procedural visual effects.
+
+### APIs (`bot_ekko/apis/`)
+- **`adapters/chat_api.py`**: Interface for LLM chat.
+- **`adapters/tenor_api.py`**: Interface for Tenor GIF search.
+
+## Installation
+
+1. **System Requirements**: 
+   - Raspberry Pi (OS: Linux/Debian) or macOS for dev (some features like Bluetooth may require Linux).
+   - Python 3.8+
+   - Pygame
+
+2. **Setup**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Running**:
+   ```bash
+   sudo python3 main.py
+   ```
+   *Note: `sudo` is often required for Bluetooth/Serial access on Pi.*
+
+## Configuration
+
+- **`bot_ekko/config.json`**: Enable/Disable specific services.
+- **`schedule.json`**: Define time-based behaviors.
+- **`bot_ekko/sys_config.py`**: System-wide constants (resolution, colors, physics).
+
+## Usage
+
+- **Bluetooth**: Connect using a BLE App (Service UUID: `1234...`). Send commands like `STATE;HAPPY`.
+- **Sensors**: Connect ESP32 to Serial Port defined in config.
+- **Gestures**: Send JSON to `/tmp/ekko_gesture.sock`.
 
 ## License
-
-[MIT License](LICENSE)
+MIT

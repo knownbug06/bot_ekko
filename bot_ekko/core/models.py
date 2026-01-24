@@ -23,6 +23,8 @@ class IMUSensorData(BaseModel):
     ay: float
     az: float
 
+    status: str
+
 
 class GestureData(BaseModel):
     gesture: str
