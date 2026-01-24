@@ -3,7 +3,7 @@ Description=Bot Ekko Service
 After=multi-user.target
 
 [Service]
-ExecStart=/home/ekko/mainbot/bot_ekko/.venv/bin/python /home/ekko/mainbot/bot_ekko/main_gd.py
+ExecStart=/home/ekko/mainbot/bot_ekko/.venv/bin/python /home/ekko/mainbot/bot_ekko/main_bot.py
 WorkingDirectory=/home/ekko/mainbot/bot_ekko
 StandardOutput=inherit
 StandardError=inherit
