@@ -63,6 +63,3 @@ Services run as independent threads or processes.
 - **Bluetooth**: Connect using a BLE App (Service UUID: `1234...`). Send commands like `STATE;HAPPY`.
 - **Sensors**: Connect ESP32 to Serial Port defined in config.
 - **Gestures**: Send JSON to `/tmp/ekko_gesture.sock`.
-
-## License
-MIT
