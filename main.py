@@ -12,7 +12,7 @@ from bot_ekko.core.logger import get_logger
 # Core Components
 from bot_ekko.core.state_machine import StateHandler, StateMachine
 from bot_ekko.core.eyes import Eyes
-from bot_ekko.core.display_manager import init_display
+from bot_ekko.core.display_manager import DisplayManager
 from bot_ekko.core.command_center import CommandCenter, Command
 from bot_ekko.core.state_renderer import StateRenderer
 
@@ -34,7 +34,8 @@ def handle_sigterm(signum, frame):
 def main():
     logger.info("Starting Bot Ekko...")
 
-    screen, logical_surface = init_display((PHYSICAL_W, PHYSICAL_H), (LOGICAL_W, LOGICAL_H), fullscreen=True)
+    display_manager = DisplayManager((PHYSICAL_W, PHYSICAL_H), (LOGICAL_W, LOGICAL_H), fullscreen=True)
+    screen, logical_surface = display_manager.init_display()
     pygame.mouse.set_visible(False)
     
     clock = pygame.time.Clock()

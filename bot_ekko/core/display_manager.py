@@ -1,52 +1,74 @@
 import pygame
+from typing import Tuple, Optional
 
-_screen = None
-_logical_surface = None
-
-def init_display(physical_size, logical_size, fullscreen=False):
+class DisplayManager:
     """
-    Initializes the Pygame display surface.
-
-    Args:
-        physical_size (tuple): The actual screen resolution (width, height).
-        logical_size (tuple): The internal resolution for rendering (width, height).
+    Manages the Pygame display surface and logical rendering surface.
+    
+    Attributes:
+        physical_size (Tuple[int, int]): The actual screen resolution.
+        logical_size (Tuple[int, int]): The internal resolution for rendering.
         fullscreen (bool): Whether to run in fullscreen mode.
-    
-    Returns:
-        tuple: (screen_surface, logical_surface)
+        screen (pygame.Surface): The main display surface.
+        logical_surface (pygame.Surface): The logical surface for rendering before scaling/rotation.
     """
-    global _screen, _logical_surface
 
-    pygame.init()
+    def __init__(self, physical_size: Tuple[int, int], logical_size: Tuple[int, int], fullscreen: bool = False):
+        """
+        Initialize the DisplayManager.
 
-    flags = pygame.FULLSCREEN if fullscreen else 0
-    _screen = pygame.display.set_mode(physical_size, flags)
-    pygame.mouse.set_visible(False)
+        Args:
+            physical_size (Tuple[int, int]): Width and height of the physical screen.
+            logical_size (Tuple[int, int]): Width and height of the logical render area.
+            fullscreen (bool, optional): functionality. Defaults to False.
+        """
+        self.physical_size = physical_size
+        self.logical_size = logical_size
+        self.fullscreen = fullscreen
+        
+        self.screen: Optional[pygame.Surface] = None
+        self.logical_surface: Optional[pygame.Surface] = None
+        self._initialized = False
 
-    _logical_surface = pygame.Surface(logical_size)
+    def init_display(self) -> Tuple[pygame.Surface, pygame.Surface]:
+        """
+        Initializes the Pygame display surface.
 
-    return _screen, _logical_surface
+        Returns:
+            Tuple[pygame.Surface, pygame.Surface]: The physical screen surface and the logical surface.
+        """
+        if self._initialized and self.screen and self.logical_surface:
+            return self.screen, self.logical_surface
 
+        pygame.init()
 
-def release_display():
-    """
-    Unitializes and quits Pygame display.
-    """
-    global _screen, _logical_surface
+        flags = pygame.FULLSCREEN | pygame.DOUBLEBUF | pygame.HWSURFACE if self.fullscreen else 0
+        self.screen = pygame.display.set_mode(self.physical_size, flags)
+        pygame.mouse.set_visible(False)
 
-    if pygame.get_init():
-        pygame.display.quit()
-        pygame.quit()
+        self.logical_surface = pygame.Surface(self.logical_size)
+        self._initialized = True
 
-    _screen = None
-    _logical_surface = None
+        return self.screen, self.logical_surface
 
+    def release_display(self) -> None:
+        """
+        Uninitializes and quits Pygame display.
+        """
+        if pygame.get_init():
+            pygame.display.quit()
+            pygame.quit()
 
-def get_surfaces():
-    """
-    Returns the current global display surfaces.
-    
-    Returns:
-        tuple: (screen_surface, logical_surface) or (None, None) if not initialized.
-    """
-    return _screen, _logical_surface
+        self.screen = None
+        self.logical_surface = None
+        self._initialized = False
+
+    @property
+    def surfaces(self) -> Tuple[Optional[pygame.Surface], Optional[pygame.Surface]]:
+        """
+        Returns the current display surfaces.
+
+        Returns:
+            Tuple[Optional[pygame.Surface], Optional[pygame.Surface]]: (screen, logical_surface)
+        """
+        return self.screen, self.logical_surface
