@@ -87,5 +87,5 @@ class MainBotServicesManager:
             if service.status == ServiceStatus.RUNNING:
                 service.update()
             else:
-                logger.warning(f"Service {service.name} is not running, will not update. status: {service.status}")
+                logger.debug(f"Service {service.name} is not running, will not update. status: {service.status}")
         

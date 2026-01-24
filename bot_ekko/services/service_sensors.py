@@ -168,7 +168,10 @@ class SensorService(ThreadedService):
     
     def update(self) -> None:
         """Checks sensor triggers and interrupts if needed."""
-        is_proximity_triggered = self.sensor_triggers.check_proximity(self.get_sensor_data())
+        sensor_data = self.get_sensor_data()
+        self.logger.debug(f"Sensor Data: {sensor_data}")
+        
+        is_proximity_triggered = self.sensor_triggers.check_proximity(sensor_data)
         
         if is_proximity_triggered:
             self.interrupt_handler.set_interrupt(
