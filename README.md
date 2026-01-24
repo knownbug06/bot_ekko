@@ -2,6 +2,12 @@
 
 Bot Ekko is a Raspberry Pi-based robot with an expressive digital face. It features an event-driven architecture that manages emotional states, sensor inputs, local communication (Bluetooth), and media playback.
 
+# Gallery
+
+![Bot Ekko](z-readme-assets/img1.png)
+![Bot Ekko](z-readme-assets/img2.jpeg)
+![Bot Ekko](z-readme-assets/img3.jpeg)
+
 ## Architecture
 
 The project is structured around a central **State Machine** that dictates the robot's behavior (e.g., Happy, Sleeping, Angry). A **Command Center** handles asynchronous commands from various services to modify this state.
