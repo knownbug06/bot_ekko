@@ -22,10 +22,10 @@ class SensorTriggers:
     def check_proximity(self, sensor_data: SensorData) -> bool:
         """
         Check if the proximity sensor values trigger a reaction.
-        
+
         Args:
             sensor_data (SensorData): The latest sensor readings.
-            
+
         Returns:
             bool: True if proximity trigger condition is met.
         """
@@ -98,10 +98,17 @@ class SensorService(ThreadedService):
 
     def _run(self) -> None:
         """
-        Main service loop. Reads JSON lines from serial.
+        Main service loop.
+        sensor data example:
+            {"sensor_vlox":{"data":{"mm":170,"status":"ok"}},"sensor_imu":{"data":{"ax":0,"ay":0,"az":0,"status":"NA"}}}
         """
         if not self.ser:
-            self.logger.error("Sensor Service running without active serial connection.")
+            self.logger.error("Sensor Service running without active serial connection (Init failed?).")
+            # We could return here, or keep running if we support re-connecting during run.
+            # For now, let's assume if start() succeeded, init() succeeded.
+            # But if start() auto-called init() and it failed, start() would have raised.
+            # So here we should be safe.
+            # HOWEVER, if I want to be super robust:
             return
 
         self.logger.info("Sensor Service Loop Started")
@@ -170,9 +177,9 @@ class SensorService(ThreadedService):
         """Checks sensor triggers and interrupts if needed."""
         sensor_data = self.get_sensor_data()
         self.logger.debug(f"Sensor Data: {sensor_data}")
-        
+
         is_proximity_triggered = self.sensor_triggers.check_proximity(sensor_data)
-        
+
         if is_proximity_triggered:
             self.interrupt_handler.set_interrupt(
                 name="proximity",

@@ -59,7 +59,7 @@ class BaseService(ABC):
     def update_stat(self, key: str, value: Any) -> None:
         """
         Update a statistic value.
-        
+
         Args:
             key (str): The statistic name.
             value (Any): The value to set.
@@ -69,7 +69,7 @@ class BaseService(ABC):
     def increment_stat(self, key: str, amount: int = 1) -> None:
         """
         Increment a numeric statistic.
-        
+
         Args:
             key (str): The statistic name.
             amount (int, optional): Amount to increment by. Defaults to 1.
@@ -83,7 +83,7 @@ class BaseService(ABC):
     def set_status(self, status: ServiceStatus) -> None:
         """
         Update service status and log the change.
-        
+
         Args:
             status (ServiceStatus): The new status.
         """
@@ -94,6 +94,8 @@ class BaseService(ABC):
         """
         Initialize the service resources. 
         Can be called manually to retry initialization.
+        Subclasses should allow this to be called multiple times if needed,
+        or check self._initialized.
         """
         self._service_initialized = True
         self._status = ServiceStatus.INITIALIZED
@@ -144,7 +146,7 @@ class ThreadedService(BaseService, threading.Thread):
 
     def start(self) -> None:
         """
-        Start the service thread. 
+        Start the service thread.
         Auto-initializes if not already initialized.
         """
         if not self._service_initialized:
@@ -153,6 +155,7 @@ class ThreadedService(BaseService, threading.Thread):
             except Exception as e:
                 self.logger.error(f"Failed to auto-initialize service: {e}")
                 self.set_status(ServiceStatus.ERROR)
+                # propogate exception
                 raise e
         else:
             self.logger.info("Service already initialized")
@@ -168,6 +171,7 @@ class ThreadedService(BaseService, threading.Thread):
         """Signal the service to stop."""
         self.set_status(ServiceStatus.STOPPED)
         self._stop_event.set()
+        # Wait for thread to finish if needed, or let the caller join()
 
     def run(self) -> None:
         """Main thread loop wrapper."""
@@ -178,6 +182,7 @@ class ThreadedService(BaseService, threading.Thread):
             self.logger.error(f"Service crashed: {e}", exc_info=True)
             self.set_status(ServiceStatus.ERROR)
             self.update_stat("last_error", str(e))
+            # We don't re-raise here typically as it's a separate thread
 
     @abstractmethod
     def _run(self) -> None:
@@ -220,15 +225,18 @@ class ProcessService(BaseService, multiprocessing.Process):
             return
             
         multiprocessing.Process.start(self)
+        # Optimistically set status in parent, though property uses is_alive()
         self.set_status(ServiceStatus.RUNNING)
 
     def stop(self) -> None:
         """Signal the service to stop."""
         self.logger.info("Stopping service...")
         self._stop_event.set()
-    
+        # We don't verify stop here, caller should join() or check status
+
     def run(self) -> None:
         """Main process loop wrapper."""
+        # Note: In child process, self._status updates are local
         self.set_status(ServiceStatus.RUNNING)
         try:
             self._run()

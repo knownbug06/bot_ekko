@@ -88,4 +88,4 @@ class MainBotServicesManager:
                 service.update()
             else:
                 logger.debug(f"Service {service.name} is not running, will not update. status: {service.status}")
-        
+

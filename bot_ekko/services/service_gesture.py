@@ -29,7 +29,7 @@ class GestureService(ThreadedService):
         self.service_config = service_gesture_config
         
         self.sock: Optional[socket.socket] = None
-        
+
         # Default mapping if not provided in config
         self._gesture_state_mapping = service_gesture_config.gesture_state_mapping
         
@@ -140,11 +140,11 @@ class GestureService(ThreadedService):
     def _recv_exact(self, conn: socket.socket, n: int) -> Optional[bytes]:
         """
         Reads exactly n bytes from the socket.
-        
+
         Args:
             conn (socket.socket): The connection object.
             n (int): Number of bytes to read.
-            
+
         Returns:
             Optional[bytes]: The read bytes, or None if EOF/Timeout/Stop.
         """

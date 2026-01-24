@@ -16,7 +16,7 @@ class SystemLogsService(ThreadedService):
     def __init__(self, service_config: ServiceSystemLogsConfig) -> None:
         """
         Initialize the System Logs Service.
-        
+
         Args:
             service_config (ServiceSystemLogsConfig): Configuration object.
         """
@@ -64,7 +64,7 @@ class SystemLogsService(ThreadedService):
     def _collect_stats(self) -> Dict[str, Any]:
         """
         Collects current system metrics.
-        
+
         Returns:
             Dict[str, Any]: Dictionary containing system stats.
         """
@@ -81,7 +81,7 @@ class SystemLogsService(ThreadedService):
     def _log_stats(self, stats: Dict[str, Any]) -> None:
         """
         Appends stats to the JSON log file.
-        
+
         Args:
             stats (Dict[str, Any]): The stats to log.
         """

@@ -32,7 +32,7 @@ class BluetoothService(ThreadedService):
     def init(self) -> None:
         """
         Initialize the Bluetooth service resources.
-        
+
         Raises:
             ServiceDependencyError: If no Bluetooth adapter is found.
         """
@@ -40,6 +40,10 @@ class BluetoothService(ThreadedService):
         self.adapter_address = self.get_hci0_addr()
         if not self.adapter_address:
              self.logger.error("No Bluetooth Adapter found.")
+             # We might want to raise an exception here if the service fails to init without hardware
+             # But following original logic, it might just log error.
+             # However, ThreadedService.start() calls init(), and if init fails it logs it.
+             # Let's raise an exception so the service status reflects failure/doesn't start properly if critical.
              raise ServiceDependencyError("No Bluetooth Adapter found", self.name)
         
         self.logger.info(f"Bluetooth Service Initialized with adapter: {self.adapter_address}")
@@ -47,7 +51,7 @@ class BluetoothService(ThreadedService):
     def get_hci0_addr(self) -> Optional[str]:
         """
         Retrieves the MAC address of the HCI0 adapter using hciconfig.
-        
+
         Returns:
             Optional[str]: MAC Address string or None if failed.
         """
@@ -62,7 +66,7 @@ class BluetoothService(ThreadedService):
     def get_bt_data(self) -> Optional[BluetoothData]:
         """
         Retrieves and clears the latest bluetooth data.
-        
+
         Returns:
             Optional[BluetoothData]: The data object or None.
         """
@@ -73,7 +77,7 @@ class BluetoothService(ThreadedService):
     def on_write(self, value: List[int], options: Dict[str, Any]) -> None:
         """
         Callback for when data is written to the characteristic.
-        
+
         Args:
             value (List[int]): The byte values received.
             options (Dict[str, Any]): Write options.
@@ -137,7 +141,7 @@ class BluetoothService(ThreadedService):
         super().stop()
         # Bluezero peripheral doesn't have a clean stop from another thread.
         # Relies on daemon thread termination for now.
-    
+
     def update(self) -> None:
         """Checks for new commands and issues them to the command center."""
         data = self.get_bt_data()
