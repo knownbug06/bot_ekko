@@ -5,11 +5,13 @@ from bot_ekko.core.logger import get_logger
 
 logger = get_logger("Eyes")
 
+
 class Eyes:
     """
     Handles the mathematical calculations for eye movement and physics.
     Does not handle rendering directly, but updates internal state coordinates.
     """
+    
     def __init__(self, state_machine: Any):
         """
         Initialize the Eyes physics controller.
@@ -29,6 +31,9 @@ class Eyes:
         
         self.blink_phase = "IDLE" # IDLE, CLOSING, OPENING
         self.last_gaze = 0
+
+        # self.looks removed, methods integrated
+
 
     def apply_physics(self) -> None:
         """
@@ -74,3 +79,53 @@ class Eyes:
         self.last_gaze = pygame.time.get_ticks()
         logger.debug(f"Eyes set to look at ({x}, {y})")
 
+
+    DIRECTIONS = {
+        "LEFT": (-100, 20),
+        "RIGHT": (100, 20),
+        "UP": (0, -100),
+        "DOWN": (0, 100),
+        "UP_LEFT": (-100, -100),
+        "UP_RIGHT": (100, -100),
+        "DOWN_LEFT": (-100, 100),
+        "DOWN_RIGHT": (100, 100),
+        "CENTER": (0, 0)
+    }
+
+    def look_at(self, direction: str) -> None:
+        """
+        Look at a specific named direction.
+        
+        Args:
+            direction (str): Name of the direction (e.g., "LEFT", "UP_RIGHT").
+        """
+        coords = self.DIRECTIONS.get(direction.upper())
+        if coords:
+            self.set_look_at(*coords)
+
+    def look_left(self) -> None:
+        self.look_at("LEFT")
+    
+    def look_right(self) -> None:
+        self.look_at("RIGHT")
+    
+    def look_up(self) -> None:
+        self.look_at("UP")
+    
+    def look_down(self) -> None:
+        self.look_at("DOWN")
+    
+    def look_up_left(self) -> None:
+        self.look_at("UP_LEFT")
+    
+    def look_up_right(self) -> None:
+        self.look_at("UP_RIGHT")
+    
+    def look_down_left(self) -> None:
+        self.look_at("DOWN_LEFT")
+    
+    def look_down_right(self) -> None:
+        self.look_at("DOWN_RIGHT")
+    
+    def look_center(self) -> None:
+        self.look_at("CENTER")

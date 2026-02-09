@@ -7,7 +7,6 @@ from typing import Optional, List, Dict, Any, Tuple, Union
 import pygame
 
 from bot_ekko.sys_config import STATES
-from bot_ekko.core.movements import Looks
 from bot_ekko.core.logger import get_logger
 from bot_ekko.core.models import StateContext
 
@@ -41,23 +40,19 @@ class StateMachine:
         return self.state
 
 
-class StateHandler:
+class BaseStateHandler:
     """
-    Handles state logic, transitions, and context management for the robot's eyes.
-
-    This class manages the lifecycle of different emotional and functional states 
-    (e.g., ACTIVE, SLEEPING, INTERFACE), handling both the logic updates 
-    and maintaining state history for context restoration.
+    Base class for handling state logic, transitions, and context management.
     """
-    def __init__(self, eyes: Any, state_machine: StateMachine):
+    def __init__(self, render_engine: Any, state_machine: StateMachine):
         """
-        Initialize the StateHandler.
+        Initialize the BaseStateHandler.
 
         Args:
-            eyes (Eyes): The eyes controller instance.
+            render_engine (AbstractRenderEngine): The render engine instance.
             state_machine (StateMachine): The state machine instance.
         """
-        self.eyes = eyes
+        self.render_engine = render_engine
         self.state_machine = state_machine
         self.state_entry_time = 0
     
@@ -79,22 +74,26 @@ class StateHandler:
         Capture the current state context.
         
         Returns:
-            StateContext: A snapshot of the current state, time, eye position, and params.
+            StateContext: A snapshot of the current state, time, and physics state.
         """
+        physics = self.render_engine.get_physics_state()
+        
+        # Backwards compatibility: try to extract x/y if available
+        x = physics.get("x", 0) if physics else 0
+        y = physics.get("y", 0) if physics else 0
+
         return StateContext(
             state=self.state_machine.get_state(),
             state_entry_time=self.state_entry_time,
-            x=self.eyes.target_x,
-            y=self.eyes.target_y,
+            x=x,
+            y=y,
+            physics_state=physics,
             params=self.current_state_params
         )
     
     def save_state_ctx(self) -> None:
         """
-        Saves the current state context (state, entry time, eye position) to history.
-        
-        This is typically used before interrupting the current state with a temporary 
-        priority state (like a sensor trigger or interface overlay).
+        Saves the current state context to history.
         """
         state_ctx = self.get_current_state_ctx()
         self.state_history.append(state_ctx)
@@ -102,16 +101,19 @@ class StateHandler:
     def restore_state_ctx(self) -> None:
         """
         Restores the most recently saved state context from history.
-        
-        This returns the robot to the previous state after an interruption.
         """
         if self.state_history:
             state_ctx = self.state_history.pop()
             self.set_state(state_ctx.state, params=state_ctx.params)
             self.state_entry_time = state_ctx.state_entry_time
-            self.eyes.target_x = state_ctx.x
-            self.eyes.target_y = state_ctx.y
-            logger.info(f"Context restored to: {state_ctx}")
+            
+            if state_ctx.physics_state:
+                self.render_engine.set_physics_state(state_ctx.physics_state)
+            else:
+                # Backwards compatible restore
+                self.render_engine.set_physics_state({"x": state_ctx.x, "y": state_ctx.y})
+                
+            logger.info(f"Context restored to: {state_ctx.state}")
 
     def set_state(self, new_state: Union[str, Tuple], params: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -139,5 +141,10 @@ class StateHandler:
             self.state_machine.set_state(new_state)
             self.state_entry_time = pygame.time.get_ticks()
             logger.info(f"State transition: {current_state} -> {new_state}, state_entry_time: {self.state_entry_time}")
-        
-        # Mood/State params are handled by body physics now
+
+
+class StateHandler(BaseStateHandler):
+    """
+    Default StateHandler mainly for backward compatibility or extension.
+    """
+    pass
