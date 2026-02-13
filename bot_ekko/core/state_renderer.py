@@ -3,6 +3,7 @@ import math
 import pygame
 from datetime import datetime
 from bot_ekko.sys_config import *
+from bot_ekko.core.state_registry import StateRegistry
 from bot_ekko.modules.effects import EffectsRenderer
 from bot_ekko.modules.media_interface import MediaModule
 from bot_ekko.core.movements import Looks
@@ -44,9 +45,9 @@ class StateRenderer:
 
     def trigger_wake(self):
         """Force wake up sequence."""
-        if self.state_handler.get_state() == "SLEEPING":
+        if self.state_handler.get_state() == StateRegistry.SLEEPING:
             logger.info("Triggering WAKING state from SLEEPING")
-            self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": "WAKING"})
+            self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": StateRegistry.WAKING})
 
     def render(self, surface, now):
         """
@@ -71,7 +72,7 @@ class StateRenderer:
             return
 
         current_state = self.state_handler.get_state()
-        if current_state == "CHAT":
+        if current_state == StateRegistry.CHAT:
             return
 
         now_dt = datetime.now()
@@ -100,12 +101,12 @@ class StateRenderer:
             source = current_params.get("_source") if isinstance(current_params, dict) else None
             
             if source == "scheduler":
-                if current_state == "SLEEPING":
+                if current_state == StateRegistry.SLEEPING:
                      logger.info("Triggering WAKING state (Schedule ended)")
-                     self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": "WAKING"})
+                     self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": StateRegistry.WAKING})
                 else:
                      logger.info(f"Reverting to ACTIVE from {current_state} (Schedule ended)")
-                     self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": "ACTIVE"})
+                     self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": StateRegistry.ACTIVE})
 
     def random_blink(self, surface, now):
         if self.eyes.blink_phase == "IDLE" and (now - self.last_blink > random.randint(3000, 9000)):
@@ -124,7 +125,7 @@ class StateRenderer:
         if now - self.last_mood_change > random.randint(5000, 12000):
             if random.random() > 0.6:
                 logger.info("Triggering SQUINTING state from random mood")
-                self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": "SQUINTING"})
+                self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": StateRegistry.SQUINTING})
                 self.last_mood_change = now
 
         # 3. Random Blink
@@ -141,7 +142,7 @@ class StateRenderer:
             
         if now - self.last_mood_change > random.randint(2000, 5000):
             logger.info("Triggering ACTIVE state from random mood")
-            self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": "ACTIVE"})
+            self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": StateRegistry.ACTIVE})
             self.last_mood_change = now
             
         # --- RENDERING ---
@@ -386,7 +387,7 @@ class StateRenderer:
             self.eyes.curr_lh, self.eyes.curr_rh = 140, 60 
         else: # Stage 2: Fully Awake
             logger.info("Triggering ACTIVE state from WAKING")
-            self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": "ACTIVE"})
+            self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": StateRegistry.ACTIVE})
             self.last_mood_change = now
             
         # --- RENDERING ---
@@ -403,7 +404,7 @@ class StateRenderer:
             # So we push ACTIVE to history manually and tell play_gif NOT to save current (FUNNY) state.
             
             # Using 0 for entry time and coordinates as defaults
-            fallback_ctx = StateContext(state="ACTIVE", state_entry_time=now, x=0, y=0)
+            fallback_ctx = StateContext(state=StateRegistry.ACTIVE, state_entry_time=now, x=0, y=0)
             self.state_handler.state_history.append(fallback_ctx)
         
             # Placeholder path - user should replace this
@@ -494,7 +495,10 @@ class StateRenderer:
         
         # Default to Config if not specified
         if top_r is None or bot_r is None:
-            state_data = STATES.get(self.state_machine.get_state(), STATES["ACTIVE"])
+            state_data = StateRegistry.get_state_data(self.state_machine.get_state())
+            if not state_data:
+                state_data = StateRegistry.get_state_data(StateRegistry.ACTIVE)
+
             _, _, radius, _, _ = state_data
             tr_l = tr_r = br_l = br_r = radius
         

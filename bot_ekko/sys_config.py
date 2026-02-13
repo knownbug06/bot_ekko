@@ -24,6 +24,13 @@ RED: Tuple[int, int, int] = (255, 50, 50)
 BLACK: Tuple[int, int, int] = (0, 0, 0)
 WHITE: Tuple[int, int, int] = (255, 255, 255)
 
+COLORS = {
+    "CYAN": CYAN,
+    "RED": RED,
+    "BLACK": BLACK,
+    "WHITE": WHITE
+}
+
 # Fonts
 # Must be initialized after pygame.init() usually, but here we assume init calls happen before usage
 # or that font module init is sufficient.
@@ -36,26 +43,7 @@ CLOCK_FONT = pygame.font.SysFont("Courier New", 80, bold=True)
 SENSOR_TRIGGER_ENTRY_TIME = 500
 SENSOR_TRIGGER_EXIT_TIME = 3000
 
-
-# STATE DATA: Each state maps to physics parameters for the eyes.
-# Format: [Base_Height, Gaze_Speed, Radius, Close_Spd, Open_Spd]
-STATES: Dict[str, List[float]] = {
-    "ACTIVE":     [160, 0.1,  30, 0.5, 0.15], # Was NEUTRAL
-    "SQUINTING":  [85,  0.07, 15, 0.4, 0.12], # Was SQUINT
-    "SLEEPING":   [8,   0.02, 4,  0.1, 0.1],  # Was SLEEP
-    "WAKING":     [140, 0.05, 20, 0.3, 0.1],  # Was CONFUSED
-    "CONFUSED":   [140, 0.05, 20, 0.3, 0.1],  # Kept for compatibility if needed, or mapped to WAKING
-    "THINKING":   [130, 0.1,  40, 0.3, 0.2],
-    "ANGRY":      [120, 0.1,  10, 0.4, 0.2],  # Angry layout
-    "SCARED":     [160, 0.2,  10, 0.5, 0.2],  # Scared layout (wide eyes, fast gaze)
-    "HAPPY":      [120, 0.1,  20, 0.4, 0.2],  # Happy layout (arched eyes)
-    "RAINBOW_EYES": [210, 0.1,  30, 0.5, 0.15], # Generic shape, rainbow fill
-    "WINK":       [160, 0.1,  20, 0.5, 0.2],  # Wink (one eye closed)
-    "UWU":        [160, 0.1,  20, 0.4, 0.2],  # Uwu face
-    "CANVAS":  [0, 0, 0, 0, 0],    # Show Text state
-    "CHAT": [0, 0, 0, 0, 0],    # Show Text state
-    "CLOCK": [0, 0, 0, 0, 0],   # Show Time state
-}
+# STATE DATA has been moved to ui_expressions_lib/eyes/adapter.py and registered via StateRegistry
 
 CANVAS_DURATION = 10
 

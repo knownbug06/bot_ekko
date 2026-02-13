@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any, Tuple, Union
 
 import pygame
 
-from bot_ekko.sys_config import STATES
+from bot_ekko.core.state_registry import StateRegistry
 from bot_ekko.core.logger import get_logger
 from bot_ekko.core.models import StateContext
 
@@ -129,7 +129,7 @@ class BaseStateHandler:
              new_state, *args = new_state
         
         # Verify state validity
-        if new_state not in STATES:
+        if not StateRegistry.has_state(new_state):
             logger.warning(f"Attempted to set invalid state: {new_state}")
             return
 

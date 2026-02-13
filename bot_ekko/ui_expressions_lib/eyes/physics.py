@@ -1,6 +1,7 @@
 import pygame
 from typing import Any, Tuple
-from bot_ekko.sys_config import STATES
+from bot_ekko.sys_config import COLORS
+from bot_ekko.core.state_registry import StateRegistry
 from bot_ekko.core.logger import get_logger
 
 logger = get_logger("Eyes")
@@ -42,7 +43,11 @@ class Eyes:
         """
         # Unpack state data.
         current_state = self.state_machine.get_state()
-        state_data = STATES.get(current_state, STATES["ACTIVE"])
+        current_state = self.state_machine.get_state()
+        state_data = StateRegistry.get_state_data(current_state)
+        if not state_data:
+            state_data = StateRegistry.get_state_data(StateRegistry.ACTIVE)
+            
         base_h, gaze_speed, _, close_spd, open_spd = state_data
         
         # --- GAZE MOVEMENT ---
@@ -56,7 +61,7 @@ class Eyes:
         
         # --- BLINK & HEIGHT PHYSICS ---
         # If we are in WAKING state (was CONFUSED), we skip standard height physics 
-        if current_state not in ["WAKING", "WINK"]:
+        if current_state not in [StateRegistry.WAKING, StateRegistry.WINK]:
             if self.blink_phase == "CLOSING":
                 self.curr_lh += (10 - self.curr_lh) * close_spd
                 self.curr_rh += (10 - self.curr_rh) * close_spd
