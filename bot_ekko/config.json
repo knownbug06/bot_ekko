@@ -1,12 +1,12 @@
 {
     "ui_expression_config": {
-        "adapter_module_path": "bot_ekko.ui_expressions_lib.eyes.adapter",
-        "adapter_class_name": "EyesExpressionAdapter"
+        "adapter_module_path": "bot_ekko.ui_expressions_lib.bmo.adapter",
+        "adapter_class_name": "BMOAdapter"
     },
     "services": {
         "sensor_service": {
             "name": "sensor_service",
-            "enabled": true,
+            "enabled": false,
             "port": "/dev/ttyUSB0",
             "baud": 115200,
             "sensor_triggers": {
@@ -23,7 +23,7 @@
         },
         "gesture_service": {
             "name": "gesture_service",
-            "enabled": true,
+            "enabled": false,
             "socket_path": "/tmp/ekko_ipc.sock",
             "gesture_update_rate": 0.1,
             "gesture_state_mapping": {

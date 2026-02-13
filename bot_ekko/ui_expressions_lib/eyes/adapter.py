@@ -5,14 +5,14 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 from bot_ekko.ui_expressions_lib.eyes.expressions import EyesExpressions
-from bot_ekko.core.render_engine import AbstractRenderEngine
+from bot_ekko.core.base_renderer import BaseStateRenderer
 from bot_ekko.ui_expressions_lib.eyes.physics import Eyes
 from bot_ekko.core.logger import get_logger
 from bot_ekko.core.models import CommandNames, StateContext
 from bot_ekko.sys_config import *
 from bot_ekko.core.state_registry import StateRegistry
 from bot_ekko.modules.effects import EffectsRenderer
-from bot_ekko.core.scheduler import Scheduler
+from bot_ekko.core.movements import BaseMovements
 
 # STATE DATA: Each state maps to physics parameters for the eyes.
 # Format: [Base_Height, Gaze_Speed, Radius, Close_Spd, Open_Spd]
@@ -41,8 +41,9 @@ DEFAULT_EYE_STATES = {
 
 logger = get_logger("EyesExpressionAdapter")
 
-class EyesExpressionAdapter(AbstractRenderEngine):
+class EyesExpressionAdapter(BaseStateRenderer):
     def __init__(self, state_machine):
+        super().__init__(state_machine)
         self.state_machine = state_machine
         self.state_handler = None
         self.command_center = None
@@ -63,10 +64,10 @@ class EyesExpressionAdapter(AbstractRenderEngine):
         self.last_blink = 0
         self.last_mood_change = 0
         
-        # Scheduler
-        self.scheduler = Scheduler(SCHEDULE_FILE_PATH)
+        self.movements = BaseMovements(self.eyes)
         
         self.media_player = None 
+        super().__init__()
 
     def set_dependencies(self, state_handler, command_center):
         self.state_handler = state_handler
@@ -81,17 +82,11 @@ class EyesExpressionAdapter(AbstractRenderEngine):
         self.eyes.apply_physics()
 
     def render(self, surface: pygame.Surface, now: int) -> None:
-        """Main render loop."""
-        current_state = self.state_handler.get_state().upper()
-        handler_name = f"handle_{current_state}"
-        handler = getattr(self, handler_name, None)
+        super().render(surface, now)
         
-        if handler:
-            handler(surface, now, params=self.state_handler.current_state_params)
-        else:
-            logger.warning(f"Warning: No handler for state {current_state}")
-            # Fallback to standard eyes if no specific handler
-            self.expressions.draw_generic(surface)
+    def handle_fallback(self, surface: pygame.Surface, now: int):
+         # Fallback to standard eyes if no specific handler
+         self.expressions.draw_generic(surface)
 
     def get_physics_state(self) -> Dict[str, Any]:
         """Return current eyes state."""
@@ -122,48 +117,6 @@ class EyesExpressionAdapter(AbstractRenderEngine):
         self.eyes.curr_rh = state.get("curr_rh", 160.0)
         self.eyes.blink_phase = state.get("blink_phase", "IDLE")
 
-    # --- Scheduler Logic (Moved from StateRenderer) ---
-    def _check_schedule(self, now):
-        # Grace period on startup (2 seconds) to ensure we start in ACTIVE/Initial state
-        if now < 2000:
-            return
-
-        current_state = self.state_handler.get_state()
-        if current_state == "CHAT":
-            return
-
-        now_dt = datetime.now()
-        
-        result = self.scheduler.get_target_state(now_dt, current_state)
-
-        if result:
-            target_state, params = result
-            
-            # Prepare params with source tracking
-            cmd_params = params.copy() if params else {}
-            cmd_params["_source"] = "scheduler"
-            cmd_params["target_state"] = target_state
-            
-            # Scheduler says we should be in target_state
-            if current_state != target_state:
-                logger.info(f"Triggering {target_state} state from schedule with params: {params}")
-                self.command_center.issue_command(CommandNames.CHANGE_STATE, params=cmd_params)
-        else:
-            # No active schedule
-            # Check if we are currently in a state triggered by the scheduler
-            current_params = self.state_handler.current_state_params or {}
-            
-            # Helper to handle case where params might be flattened or nested (defensive)
-            source = current_params.get("_source") if isinstance(current_params, dict) else None
-            
-            if source == "scheduler":
-                if current_state == StateRegistry.SLEEPING:
-                     logger.info("Triggering WAKING state (Schedule ended)")
-                     self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": StateRegistry.WAKING})
-                else:
-                     logger.info(f"Reverting to ACTIVE from {current_state} (Schedule ended)")
-                     self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": StateRegistry.ACTIVE})
-
     # --- Render Handlers (Moved from StateRenderer) ---
 
     def random_blink(self, surface, now):
@@ -192,12 +145,12 @@ class EyesExpressionAdapter(AbstractRenderEngine):
         self.expressions.draw_generic(surface)
 
     def handle_SAD(self, surface, now, params=None):
-        self.eyes.look_down()
+        self.movements.look_down()
         self.random_blink(surface, now)
         self.expressions.draw_sad_eyes(surface)
 
     def handle_CRYING(self, surface, now, params=None):
-        self.eyes.look_down()
+        self.movements.look_down()
         # No blink? Or blink wipes tears? 
         # Let's blink occasionally
         self.random_blink(surface, now)
@@ -214,13 +167,13 @@ class EyesExpressionAdapter(AbstractRenderEngine):
         self.expressions.draw_excited_eyes(surface)
 
     def handle_AMUSED(self, surface, now, params=None):
-        self.eyes.look_center()
+        self.movements.look_center()
         self.random_blink(surface, now)
         self.expressions.draw_amused_eyes(surface)
         
     def handle_SURPRISED(self, surface, now, params=None):
         # Static wide stare
-        self.eyes.look_center()
+        self.movements.look_center()
         # Rare blink
         if self.eyes.blink_phase == "IDLE" and (now - self.last_blink > random.randint(5000, 15000)):
             self.eyes.blink_phase = "CLOSING"
@@ -274,7 +227,7 @@ class EyesExpressionAdapter(AbstractRenderEngine):
                 self.media_player.play_gif(gif_path, duration=duration, save_context=False, interrupt_name=interrupt_name)
 
     def handle_ANGRY(self, surface, now, params=None):
-        self.eyes.look_center()
+        self.movements.look_center()
         self.random_blink(surface, now)
         self.expressions.draw_angry_eyes(surface)
 
@@ -291,7 +244,7 @@ class EyesExpressionAdapter(AbstractRenderEngine):
 
     def handle_HAPPY(self, surface, now, params=None):
         # --- LOGIC ---
-        self.eyes.look_up()
+        self.movements.look_up()
         self.random_blink(surface, now)
 
         # --- RENDERING ---
@@ -300,7 +253,7 @@ class EyesExpressionAdapter(AbstractRenderEngine):
 
     def handle_RAINBOW_EYES(self, surface, now, params=None):
         self.random_blink(surface, now)
-        self.eyes.look_center()
+        self.movements.look_center()
 
         # --- RENDERING ---
         self.expressions.draw_rainbow_eyes(surface, now)
@@ -352,12 +305,12 @@ class EyesExpressionAdapter(AbstractRenderEngine):
         self.eyes.curr_lh += (target_lh - self.eyes.curr_lh) * speed
         self.eyes.curr_rh += (target_rh - self.eyes.curr_rh) * speed
         
-        self.eyes.look_center()
+        self.movements.look_center()
         
         self.expressions.draw_happy_eyes(surface)
 
     def handle_UWU(self, surface, now, params=None):
-        self.eyes.look_center()
+        self.movements.look_center()
         self.expressions.draw_uwu_eyes(surface)
 
     def handle_SLEEPING(self, surface, now, params=None):

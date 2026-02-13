@@ -3,11 +3,12 @@ from typing import Any, Tuple
 from bot_ekko.sys_config import COLORS
 from bot_ekko.core.state_registry import StateRegistry
 from bot_ekko.core.logger import get_logger
+from bot_ekko.core.base import BasePhysicsEngine
 
 logger = get_logger("Eyes")
 
 
-class Eyes:
+class Eyes(BasePhysicsEngine):
     """
     Handles the mathematical calculations for eye movement and physics.
     Does not handle rendering directly, but updates internal state coordinates.
@@ -27,7 +28,6 @@ class Eyes:
         self.curr_lx, self.curr_ly = float(self.base_lx), float(self.base_ly)
         self.curr_rx, self.curr_ry = float(self.base_rx), float(self.base_ry)
         
-        self.target_x, self.target_y = 0, 0
         self.curr_lh, self.curr_rh = 160.0, 160.0 
         
         self.blink_phase = "IDLE" # IDLE, CLOSING, OPENING
@@ -71,66 +71,3 @@ class Eyes:
                 self.curr_rh += (base_h - self.curr_rh) * open_spd
                 if abs(self.curr_lh - base_h) < 2: self.blink_phase = "IDLE"
 
-    def set_look_at(self, x: int, y: int) -> None:
-        """
-        Manually set where the eyes should look relative to center.
-        
-        Args:
-            x (int): Horizontal offset from center.
-            y (int): Vertical offset from center.
-        """
-        self.target_x = x
-        self.target_y = y
-        self.last_gaze = pygame.time.get_ticks()
-        logger.debug(f"Eyes set to look at ({x}, {y})")
-
-
-    DIRECTIONS = {
-        "LEFT": (-100, 20),
-        "RIGHT": (100, 20),
-        "UP": (0, -100),
-        "DOWN": (0, 100),
-        "UP_LEFT": (-100, -100),
-        "UP_RIGHT": (100, -100),
-        "DOWN_LEFT": (-100, 100),
-        "DOWN_RIGHT": (100, 100),
-        "CENTER": (0, 0)
-    }
-
-    def look_at(self, direction: str) -> None:
-        """
-        Look at a specific named direction.
-        
-        Args:
-            direction (str): Name of the direction (e.g., "LEFT", "UP_RIGHT").
-        """
-        coords = self.DIRECTIONS.get(direction.upper())
-        if coords:
-            self.set_look_at(*coords)
-
-    def look_left(self) -> None:
-        self.look_at("LEFT")
-    
-    def look_right(self) -> None:
-        self.look_at("RIGHT")
-    
-    def look_up(self) -> None:
-        self.look_at("UP")
-    
-    def look_down(self) -> None:
-        self.look_at("DOWN")
-    
-    def look_up_left(self) -> None:
-        self.look_at("UP_LEFT")
-    
-    def look_up_right(self) -> None:
-        self.look_at("UP_RIGHT")
-    
-    def look_down_left(self) -> None:
-        self.look_at("DOWN_LEFT")
-    
-    def look_down_right(self) -> None:
-        self.look_at("DOWN_RIGHT")
-    
-    def look_center(self) -> None:
-        self.look_at("CENTER")
