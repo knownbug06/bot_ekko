@@ -21,6 +21,7 @@ class Eyes(BasePhysicsEngine):
         Args:
             state_machine (StateMachine): Reference to the state machine.
         """
+        super().__init__()
         self.state_machine = state_machine
         self.base_lx, self.base_ly = 280, 240
         self.base_rx, self.base_ry = 520, 240

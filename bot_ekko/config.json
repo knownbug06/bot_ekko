@@ -1,7 +1,7 @@
 {
     "ui_expression_config": {
-        "adapter_module_path": "bot_ekko.ui_expressions_lib.bmo.adapter",
-        "adapter_class_name": "BMOAdapter"
+        "adapter_module_path": "bot_ekko.ui_expressions_lib.bmo",
+        "adapter_class_name": "MainAdapter"
     },
     "services": {
         "sensor_service": {

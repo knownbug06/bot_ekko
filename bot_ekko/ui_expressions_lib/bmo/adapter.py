@@ -10,7 +10,7 @@ from bot_ekko.ui_expressions_lib.bmo.physics import BMOPhysics
 from bot_ekko.ui_expressions_lib.bmo.expressions import BMOExpressions
 from bot_ekko.core.movements import BaseMovements
 
-logger = get_logger("BMOAdapter")
+logger = get_logger("MainAdapter")
 
 # BMO Configuration Data
 # [Gaze_Speed, Close_Spd, Open_Spd]
@@ -26,7 +26,7 @@ BMO_STATE_DATA = {
     # Fill others with defaults
 }
 
-class BMOAdapter(BaseStateRenderer):
+class MainAdapter(BaseStateRenderer):
     def __init__(self, state_machine):
         super().__init__(state_machine)
         self.state_machine = state_machine

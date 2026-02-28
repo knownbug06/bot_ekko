@@ -39,9 +39,9 @@ DEFAULT_EYE_STATES = {
     StateRegistry.CLOCK: [0, 0, 0, 0, 0],   # Show Time state
 }
 
-logger = get_logger("EyesExpressionAdapter")
+logger = get_logger("MainAdapter")
 
-class EyesExpressionAdapter(BaseStateRenderer):
+class MainAdapter(BaseStateRenderer):
     def __init__(self, state_machine):
         super().__init__(state_machine)
         self.state_machine = state_machine
@@ -67,7 +67,6 @@ class EyesExpressionAdapter(BaseStateRenderer):
         self.movements = BaseMovements(self.eyes)
         
         self.media_player = None 
-        super().__init__()
 
     def set_dependencies(self, state_handler, command_center):
         self.state_handler = state_handler
