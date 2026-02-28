@@ -8,6 +8,7 @@ from bot_ekko.core.errors import (
     ServiceDependencyError
 )
 from bot_ekko.core.logger import get_logger
+import pygame
 
 class ServiceStatus(Enum):
     """Enumeration for service lifecycle statuses."""
@@ -255,3 +256,25 @@ class ProcessService(BaseService, multiprocessing.Process):
         Should periodically check self._stop_event.is_set()
         """
         pass
+
+
+class BasePhysicsEngine(ABC):
+
+    def __init__(self):
+        self.target_x, self.target_y = 0, 0
+        self.last_gaze = 0
+    
+    
+    def set_look_at(self, x: int, y: int) -> None:
+        """
+        Manually set where the eyes should look relative to center.
+        
+        Args:
+            x (int): Horizontal offset from center.
+            y (int): Vertical offset from center.
+        """
+        self.target_x = x
+        self.target_y = y
+        self.last_gaze = pygame.time.get_ticks()
+        logger.debug(f"Eyes set to look at ({x}, {y})")
+        

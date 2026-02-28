@@ -1,36 +1,42 @@
 {
-    "sensor_service": {
-        "name": "sensor_service",
-        "enabled": true,
-        "port": "/dev/ttyUSB0",
-        "baud": 115200,
-        "sensor_triggers": {
-            "TOF": {
-                "proximity": 200
+    "ui_expression_config": {
+        "adapter_module_path": "bot_ekko.ui_expressions_lib.bmo",
+        "adapter_class_name": "MainAdapter"
+    },
+    "services": {
+        "sensor_service": {
+            "name": "sensor_service",
+            "enabled": false,
+            "port": "/dev/ttyUSB0",
+            "baud": 115200,
+            "sensor_triggers": {
+                "TOF": {
+                    "proximity": 200
+                }
+            },
+            "proximity_duration": 1,
+            "sensor_update_rate": 0.1
+        },
+        "bt_service": {
+            "name": "bt_service",
+            "enabled": true
+        },
+        "gesture_service": {
+            "name": "gesture_service",
+            "enabled": false,
+            "socket_path": "/tmp/ekko_ipc.sock",
+            "gesture_update_rate": 0.1,
+            "gesture_state_mapping": {
+                "thumb_up": "HAPPY",
+                "thumb_down": "ANGRY",
+                "closed_fist": "ACTIVE",
+                "victory": "UWU"
             }
         },
-        "proximity_duration": 1,
-        "sensor_update_rate": 0.1
-    },
-    "bt_service": {
-        "name": "bt_service",
-        "enabled": true
-    },
-    "gesture_service": {
-        "name": "gesture_service",
-        "enabled": true,
-        "socket_path": "/tmp/ekko_ipc.sock",
-        "gesture_update_rate": 0.1,
-        "gesture_state_mapping": {
-            "thumb_up": "HAPPY",
-            "thumb_down": "ANGRY",
-            "closed_fist": "ACTIVE",
-            "victory": "UWU"
+        "system_logs_service": {
+            "name": "system_logs",
+            "enabled": true,
+            "sample_rate": 10.0
         }
-    },
-    "system_logs_service": {
-        "name": "system_logs",
-        "enabled": true,
-        "sample_rate": 10.0
     }
 }

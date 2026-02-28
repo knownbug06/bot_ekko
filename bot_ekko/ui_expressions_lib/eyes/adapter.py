@@ -1,0 +1,378 @@
+import random
+import math
+import pygame
+from datetime import datetime
+from typing import Dict, Any, Optional
+
+from bot_ekko.ui_expressions_lib.eyes.expressions import EyesExpressions
+from bot_ekko.core.base_renderer import BaseStateRenderer
+from bot_ekko.ui_expressions_lib.eyes.physics import Eyes
+from bot_ekko.core.logger import get_logger
+from bot_ekko.core.models import CommandNames, StateContext
+from bot_ekko.sys_config import *
+from bot_ekko.core.state_registry import StateRegistry
+from bot_ekko.modules.effects import EffectsRenderer
+from bot_ekko.core.movements import BaseMovements
+
+# STATE DATA: Each state maps to physics parameters for the eyes.
+# Format: [Base_Height, Gaze_Speed, Radius, Close_Spd, Open_Spd]
+DEFAULT_EYE_STATES = {
+    StateRegistry.ACTIVE:     [160, 0.1,  30, 0.5, 0.15], # Was NEUTRAL
+    StateRegistry.SQUINTING:  [85,  0.07, 15, 0.4, 0.12], # Was SQUINT
+    StateRegistry.SLEEPING:   [8,   0.02, 4,  0.1, 0.1],  # Was SLEEP
+    StateRegistry.WAKING:     [140, 0.05, 20, 0.3, 0.1],  # Was CONFUSED
+    StateRegistry.CONFUSED:   [120, 0.05, 20, 0.3, 0.1],  # One eye different
+    StateRegistry.THINKING:   [130, 0.1,  40, 0.3, 0.2],
+    StateRegistry.ANGRY:      [120, 0.1,  10, 0.4, 0.2],  # Angry layout
+    StateRegistry.SCARED:     [160, 0.2,  10, 0.5, 0.2],  # Scared layout (wide eyes, fast gaze)
+    StateRegistry.HAPPY:      [120, 0.1,  20, 0.4, 0.2],  # Happy layout (arched eyes)
+    StateRegistry.RAINBOW_EYES: [210, 0.1,  30, 0.5, 0.15], # Generic shape, rainbow fill
+    StateRegistry.WINK:       [160, 0.1,  20, 0.5, 0.2],  # Wink (one eye closed)
+    StateRegistry.UWU:        [160, 0.1,  20, 0.4, 0.2],  # Uwu face
+    StateRegistry.SAD:        [140, 0.05, 20, 0.2, 0.1],  # Sad eyes (slanted outwards)
+    StateRegistry.CRYING:     [140, 0.05, 20, 0.2, 0.1],  # Sad eyes with tears
+    StateRegistry.EXCITED:    [180, 0.15, 40, 0.6, 0.3],  # Tall, wide eyes
+    StateRegistry.AMUSED:     [130, 0.1,  20, 0.4, 0.2],  # Similar to Happy but distinct
+    StateRegistry.SURPRISED:  [180, 0.2,  10, 0.8, 0.4],  # Very wide, small pupils
+    StateRegistry.CANVAS:  [0, 0, 0, 0, 0],    # Show Text state
+    StateRegistry.CHAT: [0, 0, 0, 0, 0],    # Show Text state
+    StateRegistry.CLOCK: [0, 0, 0, 0, 0],   # Show Time state
+}
+
+logger = get_logger("MainAdapter")
+
+class MainAdapter(BaseStateRenderer):
+    def __init__(self, state_machine):
+        super().__init__(state_machine)
+        self.state_machine = state_machine
+        self.state_handler = None
+        self.command_center = None
+        
+        # Initialize internal components
+        self.eyes = Eyes(self.state_machine)
+        self.expressions = EyesExpressions(self.eyes, self.state_machine)
+        
+        # Register states
+        for state_name, state_data in DEFAULT_EYE_STATES.items():
+            StateRegistry.register_state(state_name, state_data)
+        
+        # Rendering attributes
+        self.effects = EffectsRenderer()
+        self.particles = []
+        self.wake_stage = 0
+        
+        self.last_blink = 0
+        self.last_mood_change = 0
+        
+        self.movements = BaseMovements(self.eyes)
+        
+        self.media_player = None 
+
+    def set_dependencies(self, state_handler, command_center):
+        self.state_handler = state_handler
+        self.command_center = command_center
+
+    def set_media_player(self, media_player):
+        self.media_player = media_player
+
+    def update(self, now: int) -> None:
+        """Update physics and scheduler."""
+        self._check_schedule(now)
+        self.eyes.apply_physics()
+
+    def render(self, surface: pygame.Surface, now: int) -> None:
+        super().render(surface, now)
+        
+    def handle_fallback(self, surface: pygame.Surface, now: int):
+         # Fallback to standard eyes if no specific handler
+         self.expressions.draw_generic(surface)
+
+    def get_physics_state(self) -> Dict[str, Any]:
+        """Return current eyes state."""
+        return {
+            "x": self.eyes.target_x,
+            "y": self.eyes.target_y,
+            "curr_lx": self.eyes.curr_lx,
+            "curr_ly": self.eyes.curr_ly,
+            "curr_rx": self.eyes.curr_rx,
+            "curr_ry": self.eyes.curr_ry,
+            "curr_lh": self.eyes.curr_lh,
+            "curr_rh": self.eyes.curr_rh,
+            "blink_phase": self.eyes.blink_phase
+        }
+
+    def set_physics_state(self, state: Dict[str, Any]) -> None:
+        """Restore eyes state."""
+        if not state:
+            return
+            
+        self.eyes.target_x = state.get("x", 0)
+        self.eyes.target_y = state.get("y", 0)
+        self.eyes.curr_lx = state.get("curr_lx", self.eyes.base_lx)
+        self.eyes.curr_ly = state.get("curr_ly", self.eyes.base_ly)
+        self.eyes.curr_rx = state.get("curr_rx", self.eyes.base_rx)
+        self.eyes.curr_ry = state.get("curr_ry", self.eyes.base_ry)
+        self.eyes.curr_lh = state.get("curr_lh", 160.0)
+        self.eyes.curr_rh = state.get("curr_rh", 160.0)
+        self.eyes.blink_phase = state.get("blink_phase", "IDLE")
+
+    # --- Render Handlers (Moved from StateRenderer) ---
+
+    def random_blink(self, surface, now):
+        if self.eyes.blink_phase == "IDLE" and (now - self.last_blink > random.randint(3000, 9000)):
+            self.eyes.blink_phase = "CLOSING"
+            self.last_blink = now
+
+    def handle_ACTIVE(self, surface, now, params=None):
+        # --- LOGIC ---
+        # 1. Random Gaze
+        if now - self.eyes.last_gaze > random.randint(5000, 10000):
+            self.eyes.target_x = random.randint(-100, 100)
+            self.eyes.target_y = random.randint(-40, 40)
+            self.eyes.last_gaze = now
+
+        # 2. Random Mood (Squint)
+        if now - self.last_mood_change > random.randint(5000, 12000):
+            if random.random() > 0.6:
+                logger.info("Triggering SQUINTING state from random mood")
+                self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": StateRegistry.SQUINTING})
+                self.last_mood_change = now
+
+        # 3. Random Blink
+        self.random_blink(surface, now)
+        # --- RENDERING ---
+        self.expressions.draw_generic(surface)
+
+    def handle_SAD(self, surface, now, params=None):
+        self.movements.look_down()
+        self.random_blink(surface, now)
+        self.expressions.draw_sad_eyes(surface)
+
+    def handle_CRYING(self, surface, now, params=None):
+        self.movements.look_down()
+        # No blink? Or blink wipes tears? 
+        # Let's blink occasionally
+        self.random_blink(surface, now)
+        self.expressions.draw_crying_eyes(surface)
+        
+    def handle_EXCITED(self, surface, now, params=None):
+        # Jittery gaze
+        if now - self.eyes.last_gaze > random.randint(200, 500):
+            self.eyes.target_x = random.randint(-20, 20)
+            self.eyes.target_y = random.randint(-20, 20)
+            self.eyes.last_gaze = now
+            
+        self.random_blink(surface, now)
+        self.expressions.draw_excited_eyes(surface)
+
+    def handle_AMUSED(self, surface, now, params=None):
+        self.movements.look_center()
+        self.random_blink(surface, now)
+        self.expressions.draw_amused_eyes(surface)
+        
+    def handle_SURPRISED(self, surface, now, params=None):
+        # Static wide stare
+        self.movements.look_center()
+        # Rare blink
+        if self.eyes.blink_phase == "IDLE" and (now - self.last_blink > random.randint(5000, 15000)):
+            self.eyes.blink_phase = "CLOSING"
+            self.last_blink = now
+            
+        self.expressions.draw_surprised_eyes(surface)
+
+    def handle_CONFUSED(self, surface, now, params=None):
+        # Asymmetric eyes handled by physics (confused state params)
+        # Maybe slow look around
+        if now - self.eyes.last_gaze > random.randint(3000, 6000):
+            self.eyes.target_x = random.randint(-40, 40)
+            self.eyes.target_y = random.randint(-20, 20)
+            self.eyes.last_gaze = now
+            
+        self.random_blink(surface, now)
+        self.expressions.draw_confused_eyes(surface)
+
+    def handle_SQUINTING(self, surface, now, params=None):
+        # --- LOGIC ---
+        if now - self.eyes.last_gaze > random.randint(2000, 5000):
+            self.eyes.target_x = random.randint(-100, 100)
+            self.eyes.target_y = random.randint(-40, 40)
+            self.eyes.last_gaze = now
+            
+        if now - self.last_mood_change > random.randint(2000, 5000):
+            logger.info("Triggering ACTIVE state from random mood")
+            self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": StateRegistry.ACTIVE})
+            self.last_mood_change = now
+            
+        # --- RENDERING ---
+        self.expressions.draw_generic(surface)
+    
+    def handle_CANVAS(self, surface, now, params=None):
+        if self.media_player and self.media_player.is_playing:
+            self.media_player.update(surface)
+            return
+
+        if self.media_player:
+            interrupt_name = params.get('interrupt_name') if params else None
+            text = None
+            if params and 'param' in params and isinstance(params['param'], dict):
+                 text = params['param'].get('text')
+            
+            duration = params.get("duration", CANVAS_DURATION) if params else CANVAS_DURATION
+            
+            if text:
+                self.media_player.show_text(text, duration=duration, save_context=False, interrupt_name=interrupt_name)
+            else:
+                gif_path = params.get("media_path", DEFAULT_GIF_PATH) if params else DEFAULT_GIF_PATH
+                self.media_player.play_gif(gif_path, duration=duration, save_context=False, interrupt_name=interrupt_name)
+
+    def handle_ANGRY(self, surface, now, params=None):
+        self.movements.look_center()
+        self.random_blink(surface, now)
+        self.expressions.draw_angry_eyes(surface)
+
+    def handle_SCARED(self, surface, now, params=None):
+        # --- LOGIC ---
+        self.eyes.target_x = random.randint(-40, 40)
+        self.eyes.target_y = random.randint(-20, 20)
+        self.eyes.last_gaze = now
+
+        self.random_blink(surface, now)
+             
+        # --- RENDERING ---
+        self.expressions.draw_scared_eyes(surface)
+
+    def handle_HAPPY(self, surface, now, params=None):
+        # --- LOGIC ---
+        self.movements.look_up()
+        self.random_blink(surface, now)
+
+        # --- RENDERING ---
+        self.expressions.draw_happy_eyes(surface)
+        self.expressions.draw_uwu_mouth(surface)
+
+    def handle_RAINBOW_EYES(self, surface, now, params=None):
+        self.random_blink(surface, now)
+        self.movements.look_center()
+
+        # --- RENDERING ---
+        self.expressions.draw_rainbow_eyes(surface, now)
+
+    def handle_CHAT(self, surface, now, params=None):
+        # --- LOGIC ---
+        # No eye logic needed for chat-only screen
+        
+        # --- RENDERING ---
+        is_loading = False
+        text = ""
+        
+        if params:
+            is_loading = params.get("is_loading", False)
+            text = params.get("text", "")
+
+        center_x = surface.get_width() // 2
+        center_y = surface.get_height() // 2 
+
+        if is_loading:
+            self.effects.render_loading_dots(surface, center_x, center_y, now)
+        elif text:
+            try:
+                from bot_ekko.sys_config import CHAT_FONT
+                font = CHAT_FONT
+            except ImportError:
+                font = MAIN_FONT
+             
+            # assuming media_player exposes this util or we duplicate/move it
+            if self.media_player:   
+                surf = self.media_player._render_wrapped_text(text, font, CYAN, LOGICAL_W - 40)
+                rect = surf.get_rect(center=(center_x, center_y))
+                surface.blit(surf, rect)
+
+    def handle_WINK(self, surface, now, params=None):
+        cycle_time = (now - self.state_handler.state_entry_time) % 4000
+        
+        target_lh = 160
+        target_rh = 160
+        
+        if 1000 < cycle_time < 1200:
+            target_rh = 20
+        elif 1200 <= cycle_time < 1400:
+            target_rh = 10
+        elif 1400 <= cycle_time < 1600:
+            target_rh = 160
+        
+        speed = 0.2
+        self.eyes.curr_lh += (target_lh - self.eyes.curr_lh) * speed
+        self.eyes.curr_rh += (target_rh - self.eyes.curr_rh) * speed
+        
+        self.movements.look_center()
+        
+        self.expressions.draw_happy_eyes(surface)
+
+    def handle_UWU(self, surface, now, params=None):
+        self.movements.look_center()
+        self.expressions.draw_uwu_eyes(surface)
+
+    def handle_SLEEPING(self, surface, now, params=None):
+        self.eyes.target_x = math.sin(now / 1000) * 15
+        self.eyes.target_y = 25
+        self._update_particles(now)
+        
+        self.expressions.draw_generic(surface)
+        self.effects.render_zzz(surface, self.particles)
+
+    def handle_WAKING(self, surface, now, params=None):
+        elapsed = now - self.state_handler.state_entry_time
+        if elapsed < 1500: # Stage 0: Jitter
+            self.wake_stage = 0
+            self.eyes.target_x = random.randint(-25, 25)
+            self.eyes.target_y = random.randint(-25, 25)
+            if random.random() > 0.7: self.eyes.blink_phase = "CLOSING"
+        elif elapsed < 4000: # Stage 1: Confusion
+            self.wake_stage = 1
+            self.eyes.target_x = -50
+            self.eyes.curr_lh, self.eyes.curr_rh = 140, 60 
+        else: # Stage 2: Fully Awake
+            logger.info("Triggering ACTIVE state from WAKING")
+            self.command_center.issue_command(CommandNames.CHANGE_STATE, params={"target_state": StateRegistry.ACTIVE})
+            self.last_mood_change = now
+            
+        self.expressions.draw_generic(surface)
+
+    def handle_INTERFACE(self, surface, now, params=None):
+        pass
+
+    def handle_FUNNY(self, surface, now, params=None):
+        if self.media_player and not self.media_player.is_playing:
+            fallback_ctx = StateContext(state=StateRegistry.ACTIVE, state_entry_time=now, x=0, y=0)
+            self.state_handler.state_history.append(fallback_ctx)
+            self.media_player.play_gif(DEFAULT_GIF_PATH, duration=5.0, save_context=False)
+            
+        if self.media_player and self.media_player.is_playing:
+             self.media_player.update(surface)
+    
+    def handle_CLOCK(self, surface, now, params=None):
+        if not self.media_player:
+            return
+
+        current_time = datetime.now().strftime("%I:%M %p") 
+        if current_time.startswith("0"):
+            current_time = current_time[1:] 
+            
+        from bot_ekko.sys_config import CLOCK_FONT
+        
+        target_text = current_time.capitalize()
+        if not self.media_player.is_playing or self.media_player.current_text != target_text:
+             self.media_player.show_text(current_time, duration=60.0, save_context=False, font=CLOCK_FONT)
+             
+        self.media_player.update(surface)
+
+    # --- Drawing Helpers (Delegated to EyesExpressions) ---
+    def _update_particles(self, now):
+        if random.random() < 0.03:
+            # X, Y, Alpha
+            self.particles.append([self.eyes.base_rx + 40, self.eyes.base_ry - 40, 255])
+        for p in self.particles[:]:
+            p[1] -= 1.2
+            p[0] += math.sin(now/500) * 0.5
+            p[2] -= 3
+            if p[2] <= 0: self.particles.remove(p)

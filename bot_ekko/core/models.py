@@ -32,8 +32,6 @@ class GestureData(BaseModel):
     status: str
 
 
-
-
 class SensorData(BaseModel):
     tof: TOFSensorData
     imu: IMUSensorData
@@ -42,8 +40,10 @@ class SensorData(BaseModel):
 class StateContext(BaseModel):
     state: str
     state_entry_time: int
-    x: float
-    y: float
+    # Deprecated: x/y kept for backward compatibility if needed, but prefer physics_state
+    x: float = 0.0 
+    y: float = 0.0
+    physics_state: Optional[Dict[str, Any]] = None
     params: Optional[dict] = None
 
 
@@ -101,23 +101,31 @@ class ServiceSystemLogsConfig(BaseModel):
     log_file: Optional[str] = None
 
 
+class UIExpressionConfig(BaseModel):
+    adapter_module_path: str = "bot_ekko.ui_expressions_lib.eyes.adapter"
+    adapter_class_name: str = "EyesExpressionAdapter"
+
+
 class ServicesConfig(BaseModel):
     sensor_service: ServiceSensorConfig
     bt_service: ServiceBluetoothConfig
     gesture_service: ServiceGestureConfig
     system_logs_service: Optional[ServiceSystemLogsConfig]
 
-
-
     @classmethod
     def from_dict(cls, data: Dict[str, Any]):
         return cls(**data)
+
+
+class SystemConfig(BaseModel):
+    ui_expression_config: UIExpressionConfig
+    services: ServicesConfig
 
     @classmethod
     def from_json_file(cls, file_path: str):
         with open(file_path, "r") as f:
             data = json.load(f)
-        logger.info(f"Loaded services config from {file_path}")
+        logger.info(f"Loaded system config from {file_path}")
         return cls(**data)
 
     def to_dict(self) -> Dict[str, Any]:

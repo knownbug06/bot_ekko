@@ -1,34 +1,29 @@
-from typing import Any
+import pygame
+from bot_ekko.core.base import BasePhysicsEngine
 
-class Looks:
+
+class BaseMovements:
     """
-    Defines preset eye lookup directions and convenience methods for eye movement.
+    Base class for physics modules affecting facial features.
+    Handles common gaze direction logic.
     """
-    
-    # Preset coordinates for specific look directions: (x, y)
+
     DIRECTIONS = {
-        "LEFT": (-100, 20),
-        "RIGHT": (100, 20),
-        "UP": (0, -100),
-        "DOWN": (0, 100),
-        "UP_LEFT": (-100, -100),
-        "UP_RIGHT": (100, -100),
-        "DOWN_LEFT": (-100, 100),
-        "DOWN_RIGHT": (100, 100),
-        "CENTER": (0, 0)
+        "LEFT": (-60, 0),
+        "RIGHT": (60, 0),
+        "UP": (0, -40),
+        "DOWN": (0, 40),
+        "CENTER": (0, 0),
+        "UP_LEFT": (-60, -40),
+        "UP_RIGHT": (60, -40),
+        "DOWN_LEFT": (-60, 40),
+        "DOWN_RIGHT": (60, 40)
     }
 
-    def __init__(self, eyes: Any, state_machine: Any):
-        """
-        Initialize the Looks helper.
+    def __init__(self, physics_engine: BasePhysicsEngine):
+        self.physics_engine = physics_engine
 
-        Args:
-            eyes: The Eyes controller instance.
-            state_machine: The StateMachine instance.
-        """
-        self.eyes = eyes
-        self.state_machine = state_machine
-    
+
     def look_at(self, direction: str) -> None:
         """
         Look at a specific named direction.
@@ -38,7 +33,7 @@ class Looks:
         """
         coords = self.DIRECTIONS.get(direction.upper())
         if coords:
-            self.eyes.set_look_at(*coords)
+            self.physics_engine.set_look_at(*coords)
 
     def look_left(self) -> None:
         self.look_at("LEFT")
