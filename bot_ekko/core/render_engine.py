@@ -54,13 +54,15 @@ class AbstractRenderEngine(ABC):
             state (Dict[str, Any]): The state dictionary to restore.
         """
         pass
+        
     @abstractmethod
-    def set_dependencies(self, state_handler: Any, command_center: Any) -> None:
+    def set_dependencies(self, state_handler: Any, command_center: Any, system_config: Any = None) -> None:
         """
         Inject dependencies that are created after the engine.
         
         Args:
             state_handler (BaseStateHandler): The state handler instance.
             command_center (CommandCenter): The command center instance.
+            system_config (SystemConfig, optional): The system configuration.
         """
         pass

@@ -68,9 +68,8 @@ class MainAdapter(BaseStateRenderer):
         
         self.media_player = None 
 
-    def set_dependencies(self, state_handler, command_center):
-        self.state_handler = state_handler
-        self.command_center = command_center
+    def set_dependencies(self, state_handler, command_center, system_config=None):
+        super().set_dependencies(state_handler, command_center, system_config)
 
     def set_media_player(self, media_player):
         self.media_player = media_player

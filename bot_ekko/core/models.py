@@ -118,6 +118,7 @@ class ServicesConfig(BaseModel):
 
 
 class SystemConfig(BaseModel):
+    schedules: List[Dict[str, Any]] = []
     ui_expression_config: UIExpressionConfig
     services: ServicesConfig
 

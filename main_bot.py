@@ -73,7 +73,7 @@ def main():
     command_center = CommandCenter(cmd_queue, state_handler)
     
     # Post-Init Injection for Render Engine
-    render_engine.set_dependencies(state_handler, command_center)
+    render_engine.set_dependencies(state_handler, command_center, system_config)
 
     interrupt_handler = InterruptHandler(command_center, state_handler)
 

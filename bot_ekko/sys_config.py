@@ -51,7 +51,7 @@ CANVAS_DURATION = 10
 BLUETOOTH_NAME = "Ekko"
 
 # File Paths
-SCHEDULE_FILE_PATH = os.path.join(BASE_DIR, "schedule.json")
+SCHEDULE_FILE_PATH = os.path.join(BASE_DIR, "bot_ekko", "config.json")
 DEFAULT_GIF_PATH = os.path.join(BASE_DIR, "bot_ekko", "assets", "anime.gif")
 
 # LOGGING CONFIGURATION

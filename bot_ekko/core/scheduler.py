@@ -10,40 +10,24 @@ class Scheduler:
     """
     Manages scheduled events and state transitions based on time.
     """
-    def __init__(self, schedule_file: str):
+    def __init__(self, events: List[Dict] = None):
         """
         Initialize the Scheduler.
 
         Args:
-            schedule_file (str): Path to the JSON schedule file.
+            events (List[Dict]): List of scheduled events.
         """
-        self.schedule_file = schedule_file
-        self.events: List[Dict] = []
-        self.load_schedule()
+        self.events: List[Dict] = events or []
+        self._prepare_schedule()
 
-    def load_schedule(self) -> None:
+    def _prepare_schedule(self) -> None:
         """
-        Loads the schedule from the JSON file. 
-        Populates self.events with sorted events by priority.
+        Sorts events by priority.
         """
-        try:
-            with open(self.schedule_file, 'r') as f:
-                data = json.load(f)
-                if isinstance(data, list):
-                    self.events = data
-                elif isinstance(data, dict):
-                     self.events = data.get("events", [])
-                
-                # Sort by priority (descending). Default priority 0 if not set.
-                self.events.sort(key=lambda x: x.get("priority", 0), reverse=True)
-                
-                logger.info(f"Loaded {len(self.events)} scheduled events.")
-        except FileNotFoundError:
-            logger.error(f"Schedule file not found: {self.schedule_file}")
-            self.events = []
-        except json.JSONDecodeError as e:
-            logger.error(f"Error parsing schedule file: {e}")
-            self.events = []
+        # Sort by priority (descending). Default priority 0 if not set.
+        self.events.sort(key=lambda x: x.get("priority", 0), reverse=True)
+        
+        logger.info(f"Loaded {len(self.events)} scheduled events from config.")
 
     def get_target_state(self, now_dt: datetime, current_state: str) -> Optional[Tuple[str, Optional[Dict]]]:
         """

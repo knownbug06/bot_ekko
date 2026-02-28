@@ -63,9 +63,8 @@ class MainAdapter(BaseStateRenderer):
         # OR I can register defaults for everything I missed.
         pass
 
-    def set_dependencies(self, state_handler, command_center):
-        self.state_handler = state_handler
-        self.command_center = command_center
+    def set_dependencies(self, state_handler, command_center, system_config=None):
+        super().set_dependencies(state_handler, command_center, system_config)
 
     def update(self, now: int) -> None:
         super().update(now)

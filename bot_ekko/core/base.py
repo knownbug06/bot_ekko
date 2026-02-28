@@ -286,7 +286,6 @@ from bot_ekko.core.state_registry import StateRegistry
 from bot_ekko.core.logger import get_logger
 from bot_ekko.core.models import CommandNames
 from bot_ekko.core.scheduler import Scheduler
-from bot_ekko.sys_config import SCHEDULE_FILE_PATH
 
 logger = get_logger("BaseStateRenderer")
 
@@ -299,11 +298,14 @@ class BaseStateRenderer(AbstractRenderEngine):
         self.state_machine = state_machine
         self.state_handler = None
         self.command_center = None
-        self.scheduler = Scheduler(SCHEDULE_FILE_PATH)
+        self.scheduler = None
 
-    def set_dependencies(self, state_handler, command_center):
+    def set_dependencies(self, state_handler, command_center, system_config=None):
         self.state_handler = state_handler
         self.command_center = command_center
+        
+        events = system_config.schedules if system_config else []
+        self.scheduler = Scheduler(events)
 
     def update(self, now: int) -> None:
         """
