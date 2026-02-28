@@ -2,7 +2,7 @@ import pygame
 import random
 from typing import Dict, Any, Optional
 
-from bot_ekko.core.base_renderer import BaseStateRenderer
+from bot_ekko.core.base import BaseStateRenderer
 from bot_ekko.core.state_registry import StateRegistry
 from bot_ekko.core.models import CommandNames
 from bot_ekko.core.logger import get_logger
