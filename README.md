@@ -23,9 +23,13 @@ The project is structured around a central **State Machine** that dictates the r
 ### Core Components (`bot_ekko/core/`)
 - **`state_machine.py`**: Manages the robot's current state and history.
 - **`display_manager.py`**: Handles Pygame surface initialization and scaling.
-- **`movements.py`**: Helper class (`Looks`) for preset eye movements.
-- **`eyes.py`**: Handles the math and physics of eye movement and blinking.
+- **`movements.py`**: Base classes (`BaseMovements`) for preset movements.
 - **`scheduler.py`**: Manages time-based state changes (Daily/Hourly events).
+
+### UI Expressions Library (`bot_ekko/ui_expressions_lib/`)
+Pluggable expression engines that define how the robot's face renders and animates.
+- **`eyes/`**: The original dynamic eye implementation.
+- **`bmo/`**: An alternative BMO face implementation with its own `physics.py` and `expressions.py`.
 
 ### Services (`bot_ekko/services/`)
 Services run as independent threads or processes.
@@ -62,9 +66,9 @@ Services run as independent threads or processes.
 
 ## Configuration
 
-- **`bot_ekko/config.json`**: Enable/Disable specific services.
+- **`bot_ekko/config.json`**: Configure the visual engine (`ui_expression_config`) and enable/disable specific services.
 - **`schedule.json`**: Define time-based behaviors.
-- **`bot_ekko/sys_config.py`**: System-wide constants (resolution, colors, physics).
+- **`bot_ekko/sys_config.py`**: System-wide constants (resolution, colors, standard durations).
 
 ## Usage
 
