@@ -23,7 +23,7 @@
         },
         "gesture_service": {
             "name": "gesture_service",
-            "enabled": false,
+            "enabled": true,
             "socket_path": "/tmp/ekko_ipc.sock",
             "gesture_update_rate": 0.1,
             "gesture_state_mapping": {
@@ -37,6 +37,16 @@
             "name": "system_logs",
             "enabled": true,
             "sample_rate": 10.0
+        },
+        "mic_service": {
+            "name": "mic",
+            "enabled": true,
+            "sample_rate": 44100,
+            "channels": 1,
+            "chunk_size": 1024,
+            "buffer_size": 10,
+            "save_audio": true,
+            "save_audio_path": "bot_ekko/recordings"
         }
     },
     "schedules": [
