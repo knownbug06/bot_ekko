@@ -101,6 +101,19 @@ class ServiceSystemLogsConfig(BaseModel):
     log_file: Optional[str] = None
 
 
+class ServiceMicConfig(BaseModel):
+    name: str = "mic"
+    enabled: bool = False
+    sample_rate: int = 44100
+    channels: int = 1
+    chunk_size: int = 1024
+    buffer_size: int = 10
+    save_audio: bool = False
+    save_audio_path: Optional[str] = None
+    
+
+
+
 class UIExpressionConfig(BaseModel):
     adapter_module_path: str = "bot_ekko.ui_expressions_lib.eyes.adapter"
     adapter_class_name: str = "EyesExpressionAdapter"
@@ -110,6 +123,7 @@ class ServicesConfig(BaseModel):
     sensor_service: ServiceSensorConfig
     bt_service: ServiceBluetoothConfig
     gesture_service: ServiceGestureConfig
+    mic_service: ServiceMicConfig
     system_logs_service: Optional[ServiceSystemLogsConfig]
 
     @classmethod
