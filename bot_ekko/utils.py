@@ -1,11 +1,21 @@
 import pygame
 import importlib
+import socket
 import sys
 from typing import Any, Type
 
 from bot_ekko.core.logger import get_logger
 
 logger = get_logger("Utils")
+
+
+def is_connected(host: str = "8.8.8.8", port: int = 53, timeout: float = 2.0) -> bool:
+    """Check internet connectivity via a TCP connection to a reliable host."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 
 def release_pygame_display():

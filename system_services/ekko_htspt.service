@@ -1,14 +1,17 @@
 [Unit]
 Description=Ekko WiFi Setup Portal
-After=NetworkManager.service
+After=network.target NetworkManager.service
 Wants=NetworkManager.service
 
 [Service]
-Type=oneshot
+Type=simple
 ExecStart=/home/ekko/mainbot/bot_ekko/boot_scripts/ekko_wifi_setup.sh
-RemainAfterExit=yes
 StandardOutput=journal
 StandardError=journal
+Restart=on-failure
+RestartSec=30
+StartLimitIntervalSec=600
+StartLimitBurst=10
 
 [Install]
 WantedBy=multi-user.target

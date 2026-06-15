@@ -1,7 +1,7 @@
 import queue
 
 from bot_ekko.core.command_center import Command, CommandCenter
-from bot_ekko.services import SensorService, BluetoothService, GestureService, SystemLogsService, MicService, CLIService
+from bot_ekko.services import SensorService, BluetoothService, GestureService, SystemLogsService, MicService, CLIService, SttService, LlmService
 from bot_ekko.core.models import ServicesConfig
 
 
@@ -28,6 +28,8 @@ class MainBotServicesManager:
         self.service_gesture = None
         self.service_mic = None
         self.service_cli = None
+        self.service_stt = None
+        self.service_llm = None
 
         self.command_center = CommandCenter(self.command_queue, self.state_handler)
         self.interrupt_handler = interrupt_handler
@@ -61,6 +63,18 @@ class MainBotServicesManager:
                 command_center=self.command_center,
                 config=services_config.cli_service
             )
+        if services_config.llm_service:
+            self.service_llm = LlmService(
+                service_llm_config=services_config.llm_service,
+                command_center=self.command_center,
+            )
+        if services_config.stt_service:
+            self.service_stt = SttService(
+                service_stt_config=services_config.stt_service,
+                mic_service=self.service_mic,
+                command_center=self.command_center,
+                llm_service=self.service_llm,
+            )
 
         # add services to the dictionary
         self.all_services.append(self.service_sensor)
@@ -70,6 +84,10 @@ class MainBotServicesManager:
         self.all_services.append(self.service_mic)
         if self.service_cli:
             self.all_services.append(self.service_cli)
+        if self.service_llm:
+            self.all_services.append(self.service_llm)
+        if self.service_stt:
+            self.all_services.append(self.service_stt)
         
         # add enabled services to the list
         self.enabled_services = [i for i in self.all_services if i.enabled]

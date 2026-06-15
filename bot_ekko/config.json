@@ -49,13 +49,32 @@
         },
         "mic_service": {
             "name": "mic",
-            "enabled": false,
-            "sample_rate": 44100,
+            "enabled": true,
+            "sample_rate": 16000,
             "channels": 1,
-            "chunk_size": 1024,
-            "buffer_size": 10,
-            "save_audio": true,
+            "chunk_size": 1280,
+            "buffer_size": 50,
+            "save_audio": false,
             "save_audio_path": "bot_ekko/recordings"
+        },
+        "stt_service": {
+            "name": "stt",
+            "enabled": true,
+            "model_size": "tiny.en",
+            "wake_word": "hey_jarvis",
+            "wake_word_threshold": 0.6,
+            "silence_rms_threshold": 0.01,
+            "silence_chunks_to_stop": 20,
+            "min_speech_chunks": 5
+        },
+        "llm_service": {
+            "name": "llm",
+            "enabled": true,
+            "ollama_url": "http://localhost:11434",
+            "model": "gemma3:4b",
+            "system_prompt_path": "bot_ekko/assets/prompts/ekko_system_prompt.md",
+            "response_display_seconds": 8.0,
+            "request_timeout": 60.0
         },
         "cli_service": {
             "name": "cli",

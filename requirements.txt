@@ -9,4 +9,8 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 mediapipe==0.10.18
 picamera2==0.3.31
+faster-whisper==1.2.1
+openwakeword==0.6.0
+numpy==1.24.2
+PyAudio==0.2.13
 

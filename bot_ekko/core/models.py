@@ -113,14 +113,33 @@ class ServiceSystemLogsConfig(BaseModel):
 class ServiceMicConfig(BaseModel):
     name: str = "mic"
     enabled: bool = False
-    sample_rate: int = 44100
+    sample_rate: int = 16000
     channels: int = 1
-    chunk_size: int = 1024
-    buffer_size: int = 10
+    chunk_size: int = 1280
+    buffer_size: int = 50
     save_audio: bool = False
     save_audio_path: Optional[str] = None
-    
 
+
+class ServiceSttConfig(BaseModel):
+    name: str = "stt"
+    enabled: bool = False
+    model_size: str = "tiny.en"
+    wake_word: str = "hey_jarvis"
+    wake_word_threshold: float = 0.5
+    silence_rms_threshold: float = 0.01
+    silence_chunks_to_stop: int = 20
+    min_speech_chunks: int = 5
+
+
+class ServiceLlmConfig(BaseModel):
+    name: str = "llm"
+    enabled: bool = False
+    ollama_url: str = "http://localhost:11434"
+    model: str = "gemma3:1b"
+    system_prompt_path: str = "bot_ekko/assets/prompts/ekko_system_prompt.md"
+    response_display_seconds: float = 8.0
+    request_timeout: float = 60.0
 
 
 class ServiceCliConfig(BaseModel):
@@ -141,6 +160,8 @@ class ServicesConfig(BaseModel):
     mic_service: ServiceMicConfig
     system_logs_service: Optional[ServiceSystemLogsConfig] = None
     cli_service: Optional[ServiceCliConfig] = None
+    stt_service: Optional[ServiceSttConfig] = None
+    llm_service: Optional[ServiceLlmConfig] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]):

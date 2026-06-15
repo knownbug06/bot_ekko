@@ -9,6 +9,7 @@ data change in expressions.json - no handler needed here.
 Only the media/text states (CANVAS, CHAT, CLOCK) keep bespoke handlers because
 they render through the MediaInterface instead of the eye rig.
 """
+import math
 import random
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -20,8 +21,9 @@ from bot_ekko.core.state_registry import StateRegistry
 from bot_ekko.core.models import CommandNames
 from bot_ekko.core.logger import get_logger
 from bot_ekko.modules.effects import EffectsRenderer
+from bot_ekko.modules import audio_vis, llm_state
 from bot_ekko.sys_config import (
-    CYAN, LOGICAL_W, MAIN_FONT, CANVAS_DURATION, DEFAULT_GIF_PATH,
+    CYAN, LOGICAL_W, LOGICAL_H, MAIN_FONT, CANVAS_DURATION, DEFAULT_GIF_PATH,
 )
 
 from bot_ekko.ui_expressions_lib.eyes.physics import EyeRig
@@ -44,7 +46,18 @@ BLINK_INTERVALS = {
 }
 
 # States rendered by the MediaInterface rather than the eye rig.
-MEDIA_STATES = {StateRegistry.CANVAS, StateRegistry.CHAT, StateRegistry.CLOCK}
+MEDIA_STATES = {
+    StateRegistry.CANVAS, StateRegistry.CHAT, StateRegistry.CLOCK,
+    StateRegistry.LISTENING, StateRegistry.DISPLAY_TEXT,
+}
+
+# Waveform bar layout constants
+_BAR_COUNT = 40
+_BAR_W = 10
+_BAR_GAP = 5
+_BAR_MAX_H = 180
+_BAR_MIN_H = 4
+_WAVE_TOTAL_W = _BAR_COUNT * (_BAR_W + _BAR_GAP) - _BAR_GAP
 
 
 class MainAdapter(BaseStateRenderer):
@@ -201,6 +214,102 @@ class MainAdapter(BaseStateRenderer):
             surf = self.media_player._render_wrapped_text(text, font, CYAN, LOGICAL_W - 40)
             rect = surf.get_rect(center=(center_x, center_y))
             surface.blit(surf, rect)
+
+    @staticmethod
+    def _wrap_text(text: str, font: pygame.font.Font, max_width: int) -> list:
+        lines = []
+        for paragraph in text.replace('\r\n', '\n').split('\n'):
+            words = paragraph.split()
+            if not words:
+                lines.append("")
+                continue
+            current = ""
+            for word in words:
+                test = (current + " " + word).strip() if current else word
+                if font.size(test)[0] <= max_width:
+                    current = test
+                else:
+                    if current:
+                        lines.append(current)
+                    current = word
+            if current:
+                lines.append(current)
+        return lines
+
+    def handle_DISPLAY_TEXT(self, surface, now, params=None):
+        surface.fill((0, 0, 0))
+        cx = surface.get_width() // 2
+        cy = surface.get_height() // 2
+
+        state = llm_state.get_state()
+        text = state["text"]
+        is_done = state["is_done"]
+        error = state["error"]
+
+        if error:
+            err_surf = MAIN_FONT.render("something went wrong :(", True, (255, 80, 80))
+            surface.blit(err_surf, err_surf.get_rect(center=(cx, cy)))
+            return
+
+        try:
+            from bot_ekko.sys_config import CHAT_FONT
+            font = CHAT_FONT
+        except ImportError:
+            font = MAIN_FONT
+
+        if not text:
+            # Still waiting for first token — show loading dots
+            self.effects.render_loading_dots(surface, cx, cy - 20, now)
+            thinking_surf = font.render("thinking...", True, (*CYAN, 160))
+            surface.blit(thinking_surf, thinking_surf.get_rect(centerx=cx, top=cy + 20))
+            return
+
+        # Render word-wrapped response text
+        margin_x, margin_y = 50, 40
+        line_h = font.get_linesize() + 4
+        max_w = surface.get_width() - margin_x * 2
+        max_lines = (surface.get_height() - margin_y * 2) // line_h
+
+        lines = self._wrap_text(text, font, max_w)
+
+        # If more lines than fit, show the last N (tail-follows like a terminal)
+        visible = lines[-max_lines:] if len(lines) > max_lines else lines
+        y = margin_y
+        for line in visible:
+            surf = font.render(line, True, CYAN)
+            surface.blit(surf, (margin_x, y))
+            y += line_h
+
+        # Blinking cursor while streaming
+        if not is_done and (now // 400) % 2 == 0:
+            cursor = font.render("▋", True, CYAN)
+            surface.blit(cursor, (margin_x + font.size(visible[-1] if visible else "")[0] + 2, y - line_h))
+
+    def handle_LISTENING(self, surface, now, params=None):
+        surface.fill((0, 0, 0))
+        rms_values = audio_vis.get_snapshot()
+
+        cx = surface.get_width() // 2
+        cy = surface.get_height() // 2
+        x_start = cx - _WAVE_TOTAL_W // 2
+
+        for i, rms in enumerate(rms_values):
+            # Smooth with a tiny sine shimmer so silent bars aren't completely flat
+            shimmer = math.sin(now * 0.003 + i * 0.4) * 0.015
+            height = max(_BAR_MIN_H, int((_BAR_MAX_H * (rms + shimmer))))
+            x = x_start + i * (_BAR_W + _BAR_GAP)
+            rect = pygame.Rect(x, cy - height // 2, _BAR_W, height)
+
+            # Fade alpha: older bars (left) dimmer, current bar (right) full brightness
+            alpha = int(80 + 175 * (i / _BAR_COUNT))
+            color = (*CYAN, alpha)
+
+            bar_surf = pygame.Surface((_BAR_W, height), pygame.SRCALPHA)
+            bar_surf.fill(color)
+            surface.blit(bar_surf, (rect.x, rect.y))
+
+        label = MAIN_FONT.render("listening...", True, (*CYAN, 160))
+        surface.blit(label, label.get_rect(centerx=cx, top=cy + _BAR_MAX_H // 2 + 16))
 
     def handle_CLOCK(self, surface, now, params=None):
         if not self.media_player:

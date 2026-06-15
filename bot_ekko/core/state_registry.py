@@ -26,6 +26,7 @@ class StateRegistry:
     CHAT = "CHAT"
     CLOCK = "CLOCK"
     LISTENING = "LISTENING"
+    DISPLAY_TEXT = "DISPLAY_TEXT"
     # Extended expression set (geometry lives in eyes/expressions.json).
     JOY = "JOY"
     CONTENT = "CONTENT"
@@ -70,6 +71,7 @@ class StateRegistry:
         CHAT: None,
         CLOCK: None,
         LISTENING: None,
+        DISPLAY_TEXT: None,
         JOY: None,
         CONTENT: None,
         LOVE: None,
