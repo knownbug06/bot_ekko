@@ -26,9 +26,28 @@ class StateRegistry:
     CHAT = "CHAT"
     CLOCK = "CLOCK"
     LISTENING = "LISTENING"
+    # Extended expression set (geometry lives in eyes/expressions.json).
+    JOY = "JOY"
+    CONTENT = "CONTENT"
+    LOVE = "LOVE"
+    PLAYFUL = "PLAYFUL"
+    FOCUSED = "FOCUSED"
+    DISAPPOINTED = "DISAPPOINTED"
+    FURIOUS = "FURIOUS"
+    ANNOYED = "ANNOYED"
+    SKEPTICAL = "SKEPTICAL"
+    SMUG = "SMUG"
+    DISGUST = "DISGUST"
+    SHOCKED = "SHOCKED"
+    CURIOUS = "CURIOUS"
+    BORED = "BORED"
+    SLEEPY = "SLEEPY"
+    TIRED = "TIRED"
+    DIZZY = "DIZZY"
 
-    # Internal storage for state data
-    # Initialized with None for known states
+    # Internal storage for state data.
+    # Note: expression states are also auto-registered at runtime by the eyes
+    # adapter from expressions.json, so this dict is the baseline, not the limit.
     _data: Dict[str, Optional[Any]] = {
         ACTIVE: None,
         SQUINTING: None,
@@ -51,6 +70,23 @@ class StateRegistry:
         CHAT: None,
         CLOCK: None,
         LISTENING: None,
+        JOY: None,
+        CONTENT: None,
+        LOVE: None,
+        PLAYFUL: None,
+        FOCUSED: None,
+        DISAPPOINTED: None,
+        FURIOUS: None,
+        ANNOYED: None,
+        SKEPTICAL: None,
+        SMUG: None,
+        DISGUST: None,
+        SHOCKED: None,
+        CURIOUS: None,
+        BORED: None,
+        SLEEPY: None,
+        TIRED: None,
+        DIZZY: None,
     }
 
     @classmethod

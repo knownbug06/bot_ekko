@@ -74,8 +74,17 @@ class ServiceSensorConfig(BaseModel):
     port: str
     enabled: bool = False
 
-    sensor_triggers: Dict[str, Union[str, Dict[str, int]]]
-    proximity_duration: int = 10
+    sensor_triggers: Dict[str, Union[str, Dict[str, float]]]
+
+    # Proximity (TOF) reaction: which expression to interrupt to when something
+    # comes close, and for how long (seconds).
+    proximity_state: str = "SURPRISED"
+    proximity_duration: int = 2
+
+    # IMU shake reaction (e.g. the bot is picked up / shaken).
+    imu_state: str = "DIZZY"
+    imu_duration: int = 3
+
     sensor_update_rate: float = 0.1
 
 

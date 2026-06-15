@@ -1,0 +1,98 @@
+{
+  "_comment": "Declarative eye-expression library. Add a new emotion by adding an entry here - no code changes needed. Geometry keys (width,height,radius,offset_x,offset_y,lid_top_inner,lid_top_outer,lid_bottom_inner,lid_bottom_outer,shape) may be set at the expression level (applies to both eyes) and/or overridden per-eye via 'left'/'right'. lid_* are fractions [0..1] of eye height covered by an eyelid; inner=nose side, outer=temple side. shape: rect|ellipse|arc|heart|ring. gaze: wander|jitter|sway|scan|center|up|down|left|right|up_right|up_left|away. blink: normal|slow|fast|none.",
+
+  "defaults": {
+    "width": 170, "height": 170, "radius": 55,
+    "color": [0, 255, 180],
+    "gaze": "wander", "blink": "normal", "morph_speed": 0.18,
+    "shape": "rect"
+  },
+
+  "expressions": {
+    "ACTIVE":    { "gaze": "wander" },
+
+    "SQUINTING": { "lid_top_inner": 0.3, "lid_top_outer": 0.3, "lid_bottom_inner": 0.3, "lid_bottom_outer": 0.3, "gaze": "wander" },
+
+    "FOCUSED":   { "lid_top_inner": 0.28, "lid_top_outer": 0.28, "lid_bottom_inner": 0.25, "lid_bottom_outer": 0.25, "gaze": "center", "blink": "slow" },
+
+    "HAPPY":     { "radius": 70, "lid_bottom_inner": 0.45, "lid_bottom_outer": 0.45, "gaze": "center", "effects": ["mouth"] },
+
+    "CONTENT":   { "radius": 65, "lid_bottom_inner": 0.28, "lid_bottom_outer": 0.28, "gaze": "center", "blink": "slow" },
+
+    "AMUSED":    { "radius": 70, "lid_bottom_inner": 0.32, "lid_bottom_outer": 0.18, "gaze": "center" },
+
+    "JOY":       { "shape": "arc", "width": 175, "height": 150, "gaze": "center", "blink": "none", "effects": ["sparkles", "mouth"] },
+
+    "EXCITED":   { "width": 185, "height": 200, "radius": 70, "lid_bottom_inner": 0.1, "lid_bottom_outer": 0.1, "gaze": "jitter", "blink": "fast", "effects": ["sparkles"] },
+
+    "LOVE":      { "shape": "heart", "width": 170, "height": 170, "color": [255, 110, 170], "gaze": "center", "blink": "slow", "effects": ["blush"] },
+
+    "UWU":       { "shape": "arc", "width": 165, "height": 140, "gaze": "center", "blink": "none", "effects": ["blush", "mouth"] },
+
+    "WINK":      { "gaze": "center", "effects": ["mouth"],
+                   "left":  { "radius": 70, "lid_bottom_inner": 0.45, "lid_bottom_outer": 0.45 },
+                   "right": { "lid_top_inner": 0.5, "lid_top_outer": 0.5, "lid_bottom_inner": 0.4, "lid_bottom_outer": 0.4 } },
+
+    "PLAYFUL":   { "gaze": "center", "effects": ["mouth"],
+                   "left":  { "radius": 70, "lid_bottom_inner": 0.4, "lid_bottom_outer": 0.4 },
+                   "right": { "lid_top_inner": 0.55, "lid_top_outer": 0.55, "lid_bottom_inner": 0.35, "lid_bottom_outer": 0.35 } },
+
+    "SAD":       { "lid_top_outer": 0.42, "lid_top_inner": 0.08, "gaze": "down", "blink": "slow", "morph_speed": 0.12 },
+
+    "CRYING":    { "lid_top_outer": 0.45, "lid_top_inner": 0.1, "gaze": "down", "blink": "slow", "morph_speed": 0.12, "effects": ["tears"] },
+
+    "DISAPPOINTED": { "lid_top_outer": 0.3, "lid_top_inner": 0.1, "lid_bottom_inner": 0.15, "lid_bottom_outer": 0.05, "gaze": "down", "blink": "slow" },
+
+    "ANGRY":     { "color": [255, 50, 50], "lid_top_inner": 0.5, "lid_top_outer": 0.0, "gaze": "center" },
+
+    "FURIOUS":   { "color": [255, 40, 40], "height": 150, "lid_top_inner": 0.62, "lid_top_outer": 0.05, "gaze": "center", "blink": "fast", "effects": ["sweat"] },
+
+    "ANNOYED":   { "lid_top_inner": 0.38, "lid_top_outer": 0.15, "gaze": "left", "blink": "slow" },
+
+    "SKEPTICAL": { "gaze": "center",
+                   "left":  { "lid_top_inner": 0.45, "lid_top_outer": 0.45 },
+                   "right": { "lid_top_inner": 0.0,  "lid_top_outer": 0.0 } },
+
+    "SMUG":      { "gaze": "left",
+                   "left":  { "lid_top_inner": 0.25, "lid_bottom_inner": 0.35, "lid_bottom_outer": 0.2 },
+                   "right": { "lid_top_inner": 0.15, "lid_bottom_inner": 0.3, "lid_bottom_outer": 0.15 } },
+
+    "DISGUST":   { "gaze": "up_left", "color": [120, 220, 90],
+                   "left":  { "lid_top_inner": 0.35, "lid_top_outer": 0.1, "offset_y": -8 },
+                   "right": { "lid_top_inner": 0.2, "lid_top_outer": 0.05 } },
+
+    "SURPRISED": { "shape": "ellipse", "width": 180, "height": 210, "gaze": "center", "blink": "slow", "effects": ["pupils"] },
+
+    "SHOCKED":   { "shape": "ellipse", "width": 200, "height": 235, "gaze": "jitter", "blink": "none", "effects": ["pupils", "sweat"] },
+
+    "SCARED":    { "width": 175, "height": 200, "radius": 60, "color": [235, 245, 255], "lid_top_outer": 0.18, "lid_top_inner": 0.05, "gaze": "jitter", "blink": "fast", "effects": ["sweat"] },
+
+    "CONFUSED":  { "gaze": "wander", "morph_speed": 0.14,
+                   "left":  { "height": 200, "radius": 65 },
+                   "right": { "height": 120, "radius": 45, "lid_top_inner": 0.2 } },
+
+    "CURIOUS":   { "gaze": "up", "morph_speed": 0.16,
+                   "left":  { "height": 190, "offset_y": -6 },
+                   "right": { "height": 150 } },
+
+    "THINKING":  { "gaze": "up_right", "blink": "slow",
+                   "left":  { "lid_top_inner": 0.32 },
+                   "right": { "lid_top_inner": 0.0 } },
+
+    "BORED":     { "lid_top_inner": 0.5, "lid_top_outer": 0.5, "gaze": "left", "blink": "slow", "morph_speed": 0.12 },
+
+    "SLEEPY":    { "lid_top_inner": 0.6, "lid_top_outer": 0.6, "gaze": "down", "blink": "slow", "morph_speed": 0.1 },
+
+    "TIRED":     { "lid_top_inner": 0.55, "lid_top_outer": 0.55, "lid_bottom_inner": 0.1, "lid_bottom_outer": 0.1, "gaze": "down", "blink": "slow" },
+
+    "SLEEPING":  { "height": 26, "radius": 13, "gaze": "sway", "blink": "none", "morph_speed": 0.1, "effects": ["zzz"] },
+
+    "WAKING":    { "lid_top_inner": 0.3, "lid_top_outer": 0.3, "gaze": "jitter", "blink": "fast", "auto_next": "ACTIVE", "auto_after_ms": 3000 },
+
+    "DIZZY":     { "shape": "ellipse", "width": 175, "height": 175, "gaze": "jitter", "blink": "fast", "effects": ["sweat"] },
+
+    "LISTENING": { "shape": "ring", "width": 150, "height": 150, "gaze": "center", "blink": "none" },
+
+    "RAINBOW_EYES": { "height": 200, "radius": 60, "gaze": "center", "effects": ["rainbow"] }
+  }
+}

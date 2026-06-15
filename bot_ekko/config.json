@@ -12,9 +12,15 @@
             "sensor_triggers": {
                 "TOF": {
                     "proximity": 200
+                },
+                "IMU": {
+                    "shake": 2.5
                 }
             },
-            "proximity_duration": 1,
+            "proximity_state": "SURPRISED",
+            "proximity_duration": 2,
+            "imu_state": "DIZZY",
+            "imu_duration": 3,
             "sensor_update_rate": 0.1
         },
         "bt_service": {
@@ -28,9 +34,12 @@
             "gesture_update_rate": 0.1,
             "gesture_state_mapping": {
                 "thumb_up": "HAPPY",
-                "thumb_down": "ANGRY",
-                "closed_fist": "ACTIVE",
-                "victory": "UWU"
+                "thumb_down": "ANNOYED",
+                "victory": "JOY",
+                "iloveyou": "LOVE",
+                "open_palm": "CURIOUS",
+                "pointing_up": "THINKING",
+                "closed_fist": "FOCUSED"
             }
         },
         "system_logs_service": {

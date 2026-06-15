@@ -1,4 +1,5 @@
 import json
+import math
 import serial
 import time
 from typing import Optional, Dict, Union, Any
@@ -48,6 +49,36 @@ class SensorTriggers:
             return True
         return False
 
+    def check_shake(self, sensor_data: SensorData, prev_magnitude: Optional[float]) -> bool:
+        """
+        Detect a sudden jolt/shake from the IMU by comparing the change in total
+        acceleration magnitude against the configured threshold.
+
+        Args:
+            sensor_data (SensorData): The latest sensor readings.
+            prev_magnitude (Optional[float]): Acceleration magnitude from the previous frame.
+
+        Returns:
+            bool: True if a shake was detected this frame.
+        """
+        if "IMU" not in self.triggers or prev_magnitude is None:
+            return False
+        if sensor_data.imu.status != "ok":
+            return False
+
+        trigger_config = self.triggers["IMU"]
+        if not isinstance(trigger_config, dict):
+            return False
+        threshold = trigger_config.get("shake", 2.5)
+
+        magnitude = self.imu_magnitude(sensor_data)
+        return abs(magnitude - prev_magnitude) > threshold
+
+    @staticmethod
+    def imu_magnitude(sensor_data: SensorData) -> float:
+        imu = sensor_data.imu
+        return math.sqrt(imu.ax ** 2 + imu.ay ** 2 + imu.az ** 2)
+
 
 class SensorService(ThreadedService):
     """
@@ -79,6 +110,9 @@ class SensorService(ThreadedService):
             tof=TOFSensorData(mm=0, status="NA"),
             imu=IMUSensorData(ax=0, ay=0, az=0, status="NA")
         )
+
+        # Running IMU magnitude, used to detect a shake (frame-to-frame delta).
+        self._prev_imu_magnitude: Optional[float] = None
 
     def init(self) -> None:
         """Initialize serial connection."""
@@ -178,14 +212,26 @@ class SensorService(ThreadedService):
         sensor_data = self.get_sensor_data()
         self.logger.debug(f"Sensor Data: {sensor_data}")
 
-        is_proximity_triggered = self.sensor_triggers.check_proximity(sensor_data)
-
-        if is_proximity_triggered:
+        # Proximity (TOF): something came close -> react (default: SURPRISED).
+        if self.sensor_triggers.check_proximity(sensor_data):
             self.interrupt_handler.set_interrupt(
                 name="proximity",
                 duration=self.service_sensor_config.proximity_duration,
-                target_state="ANGRY",
+                target_state=self.service_sensor_config.proximity_state,
                 priority=10,
                 params={}
             )
+
+        # IMU: a sudden jolt/shake -> react (default: DIZZY).
+        if self.sensor_triggers.check_shake(sensor_data, self._prev_imu_magnitude):
+            self.interrupt_handler.set_interrupt(
+                name="shake",
+                duration=self.service_sensor_config.imu_duration,
+                target_state=self.service_sensor_config.imu_state,
+                priority=15,
+                params={}
+            )
+
+        if sensor_data.imu.status == "ok":
+            self._prev_imu_magnitude = SensorTriggers.imu_magnitude(sensor_data)
 

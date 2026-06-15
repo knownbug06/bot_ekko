@@ -1,1 +1,1 @@
-from .adapter import MainAdapter
+from .adapter import MainAdapter, EyesExpressionAdapter
